@@ -1,7 +1,7 @@
-/*	main.c
+/*	dialogue.c
  *
- * The main file, where the 'main' function located. At first it controls
- * flags that were added to the program call, then it decides what to do.
+ * Contains realisations for functions, needed in dialogue w/ the user. Primary
+ * goal is to collect all the needed info for calculations w/o troubles.
  *
  * ----------------------------------------------------------------------
  *
@@ -30,17 +30,20 @@
  *
  * ---------------------------------------------------------------------*/
 
-
 #include "radexi.h"
 
-int
-main (int argc, char ** argv)
+void
+start_dialogue (struct rx_options *opts) 
 {
-  struct rx_options * rx_opts;
-  int pathindex = set_rx_options (rx_opts, argc, argv);
+  textformat (BRIGHT, CYAN, BLACK);
+  printf ("You like what you see?\n");
+  textformat (RESET, WHITE, BLACK);
+}
 
-  start_dialogue (rx_opts);
-
-  printf ("%d\n", pathindex);
-	exit (EXIT_SUCCESS);
+void
+textformat (enum Attr attr, enum Color fg, enum Color bg)
+{
+  char command[13];
+  sprintf (command, "%c[%d;%d;%dm", 0x1B, attr, fg + 30, bg + 40);
+  printf ("%s", command);
 }
