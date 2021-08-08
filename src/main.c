@@ -41,6 +41,5 @@ main (int argc, char ** argv)
 
   start_dialogue (rx_opts);
 
-  printf ("%d\n", pathindex);
 	exit (EXIT_SUCCESS);
 }

@@ -35,15 +35,41 @@
 void
 start_dialogue (struct rx_options *opts) 
 {
-  textformat (BRIGHT, CYAN, BLACK);
-  printf ("You like what you see?\n");
-  textformat (RESET, WHITE, BLACK);
+  print_userguide ();
+  printf ("Enter molecule's name ");
+  printf ("('\x1B[4;37;40mlist\x1B[0;37;40m\x1B[3;37;40m'");
+  printf (" to see the variants)\n");
+
+  print_userinput ();
+
+  int bytes_read;
+  int size = 15;
+  char *string;
+  string = (char *) malloc (size);
+  bytes_read = getdelim (&string, &size, ' ', stdin);
+
+  if (bytes_read != -1)
+    printf ("\r >> %s \t", string);
+
 }
 
 void
 textformat (enum Attr attr, enum Color fg, enum Color bg)
 {
+  /* See https://www.linuxjournal.com/article/8603 for reference. */
   char command[13];
   sprintf (command, "%c[%d;%d;%dm", 0x1B, attr, fg + 30, bg + 40);
   printf ("%s", command);
+}
+
+void
+print_userguide () 
+{
+  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m\x1B[3;37;40m");
+}
+  
+void
+print_userinput () 
+{
+  printf ("\x1B[0;37;40m\x1B[1;32;40m  >> \x1B[0;37;40m");
 }
