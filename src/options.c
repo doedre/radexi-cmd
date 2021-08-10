@@ -51,8 +51,10 @@ static struct option const long_options[] = {
 //  {"add-molecule", required_argument, NULL, ADD_MOLECULE_OPTION},
 //  {"list-molecules", no_argument, NULL, LIST_MOLECULES_OPTION},
 //  {"delete-molecule", required_argument, NULL, DELETE_MOLECULE_OPTION},
-  {"result", required_argument, NULL, 'r'},
+  {"log-density", no_argument, NULL, 'l'},
+  {"hz-width", no-argument, NULL, 'H'},
   {"help", no_argument, NULL, 'h'},
+  {"result", required_argument, NULL, 'r'},
   {"version", no_argument, NULL, VERSION_OPTION}
 };
 
@@ -63,16 +65,28 @@ set_rx_options (struct rx_options *opts, int argc, char ** argv)
   int option_index = 0;
   int opt;
   while ((opt = getopt_long (argc, argv, 
-                              "hor:", 
+                              "lqHhor:", 
                               long_options, &option_index)) != -1)
     {
       switch (opt)
         {
+        case 'l':
+          opts->dens_log_scale = true;
+          break;
+
+        case 'H':
+          opts->hz_width = true;
+          break;
+
         case 'h':
           cmd_usage (EXIT_SUCCESS);
           break;
 
         case 'o':
+          break;
+
+        case 'q':
+          opts->quite_start = true;
           break;
 
         case 'r':

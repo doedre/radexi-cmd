@@ -40,37 +40,6 @@
 #define PROGRAM_NAME  "radexi"
 
 
-/* Giving life and colors to this program.  */
-enum Attr
-{
-  RESET = 0,
-  BRIGHT,
-  DIM,
-  ITALIC,
-  UNDERLINE,
-};
-
-enum Color
-{
-  BLACK = 0,
-  RED,
-  GREEN,
-  YELLOW,
-  BLUE,
-  MAGENTA,
-  CYAN,
-  WHITE,
-};
-
-
-/* Use this function before and after the 'printf()' function to control the 
- * output flow. */
-void textformat (enum Attr attr, enum Color fg, enum Color bg);
-
-void print_userguide ();
-
-void print_userinput ();
-
 /* Defines how molecular cloud's parameters will be collected. */
 enum UsageMode
 {
@@ -87,7 +56,7 @@ enum UsageMode
  * 'set_rx_options' functions. */
 struct rx_options
 {
-  /* How molecular cloud's parameters will be collecter: via dialogue or file.
+  /* How molecular cloud's parameters will be collected: via dialogue or file.
    */
   enum UsageMode usage_mode;
 
@@ -98,11 +67,24 @@ struct rx_options
   char out_file_path[80];
 
   /* Whether resulting table should be printed in the terminal or not.
-   * -o flag */
+   * -o flag: disabled by default */
   bool cmd_output;
 
+  /* Print message w/ information on the start or not.
+   * -q flag: disabled by default */
+  bool quite_start;
+
+  /* If 'true', then instead of writing densities in scientific format user 
+   * should only write power of 10.
+   * -l of --log-density flag: disabled by default */
+  bool dens_log_scale;
+
+  /* if 'true', then use [GHz] line width instead of [km -s].
+   * -g og --ghz-width flag: disabled by default  */
+  bool hz_width;
+
   /* If user defined a path for the file w/ resilts. 
-   * -r: or --result flag */
+   * -r or --result flag */
   bool user_defined_out_file_path;
 
 };
@@ -166,7 +148,13 @@ int set_rx_options (struct rx_options *rx_opts, int argc, char **argv);
 /* Sets all parameters to defaults before proceeding w/ 'set_rx_options()'  */
 void set_default_rx_options (struct rx_options *rx_opts);
 
+
+//typedef bool (allowed_value)(const char *str, float *par);
+typedef bool (allowed_value)(const char *str, float *par, 
+                                          const struct rx_options *rx_opts);
+
 /* Initiates a dialogue w/ the user if no other input had been set  */
-void start_dialogue (struct rx_options *rx_opts);
+void start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 
+                                            const struct rx_options *rx_opts);
 
 #endif  // RADEXI_H

@@ -36,10 +36,14 @@
 int
 main (int argc, char ** argv)
 {
-  struct rx_options * rx_opts;
-  int pathindex = set_rx_options (rx_opts, argc, argv);
+  struct rx_options rx_opts;
+  struct MC_parameters mc_pars;
+  float sf, ef;
+  int pathindex = set_rx_options (&rx_opts, argc, argv);
 
-  start_dialogue (rx_opts);
+  start_dialogue (&sf, &ef, &mc_pars, &rx_opts);
+
+  printf ("result: %e\n", mc_pars.coldens);
 
 	exit (EXIT_SUCCESS);
 }
