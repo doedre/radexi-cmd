@@ -52,7 +52,7 @@ static struct option const long_options[] = {
 //  {"list-molecules", no_argument, NULL, LIST_MOLECULES_OPTION},
 //  {"delete-molecule", required_argument, NULL, DELETE_MOLECULE_OPTION},
   {"log-density", no_argument, NULL, 'l'},
-  {"hz-width", no-argument, NULL, 'H'},
+  {"hz-width", no_argument, NULL, 'H'},
   {"help", no_argument, NULL, 'h'},
   {"result", required_argument, NULL, 'r'},
   {"version", no_argument, NULL, VERSION_OPTION}

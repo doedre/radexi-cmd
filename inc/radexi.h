@@ -110,7 +110,8 @@ enum ColPartner
   ELECTRONS,
   HI,
   He,
-  HII
+  HII,
+  NO_MOLECULE
 };
 
 
@@ -152,6 +153,9 @@ void set_default_rx_options (struct rx_options *rx_opts);
 //typedef bool (allowed_value)(const char *str, float *par);
 typedef bool (allowed_value)(const char *str, float *par, 
                                           const struct rx_options *rx_opts);
+
+typedef bool (allowed_value_cps)(const char *str, struct col_partner *cps[7],
+                                 size_t *s, const struct rx_options *rx_opts);
 
 /* Initiates a dialogue w/ the user if no other input had been set  */
 void start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 

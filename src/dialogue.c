@@ -47,6 +47,8 @@ static enum
   TKIN_FAIL,
   TBG_FAIL,
   COLDENS_FAIL,
+  FWHM_FAIL,
+  COLLISION_FAIL,
   EXIT_REQUEST,
 };
 
@@ -79,6 +81,16 @@ dialogue_usage (int state)
     {
       printf ("\x1B[0;37;40m\x1B[1;31;40m  ## \x1B[0;37;40m");
       printf ("Wrong input. Check for coldens range\x1B[3;37;40m\n");
+    }
+  else if (state == FWHM_FAIL)
+    {
+      printf ("\x1B[0;37;40m\x1B[1;31;40m  ## \x1B[0;37;40m");
+      printf ("Wrong input. Check for FWHM range\x1B[3;37;40m\n");
+    }
+  else if (state == COLLISION_FAIL)
+    {
+      printf ("\x1B[0;37;40m\x1B[1;31;40m  ## \x1B[0;37;40m");
+      printf ("Wrong input. Collision\x1B[3;37;40m\n");
     }
   else if (state == EXIT_REQUEST)
     {
@@ -297,7 +309,7 @@ isAllowedWidth (const char *str, float *val, const struct rx_options *rx_opts)
 
   if (rx_opts->hz_width)
     {
-      if ((f > 1e-3) && (f < 1e3))
+      if ((f > 1e-4) && (f < 1e4))
         {
           *val = f;
           res = true;
@@ -339,7 +351,7 @@ enter_float_parameter  (float *par,
       if (isAllowed (line, par, rx_opts))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave ("history_file");
+          linenoiseHistorySave (history_file);
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -355,6 +367,98 @@ enter_float_parameter  (float *par,
 }
 
 
+static enum ColPartner
+conv_name_to_int (const char *str)
+{
+  enum ColPartner res = He;
+  if (!strncmp (str, "H2", 2) || !strncmp (str, "h2", 2))
+    res = H2;
+  else if (!strncmp (str, "PARA_H2", 7) || !strncmp (str, "para_h2", 7))
+    res = PARA_H2;
+  else if (!strncmp (str, "ORTHO_H2", 8) || !strncmp (str, "ortho_h2", 8))
+    res = ORTHO_H2;
+  else if (!strncmp (str, "ELECTRONS", 9) || !strncmp (str, "elecctrons", 9))
+    res = ELECTRONS;
+  else if (!strncmp (str, "HI", 2) || !strncmp (str, "hi", 2))
+    res = HI;
+  else if (!strncmp (str, "He", 2) || !strncmp (str, "he", 2))
+    res = He;
+  else if (!strncmp (str, "HII", 3) || !strncmp (str, "hii", 3))
+    res = HII;
+  else 
+    res = NO_MOLECULE;
+
+  return res;
+}
+
+static bool
+isAllowedCollisionPartners (const char *str, struct col_partner cps[7], 
+                                  size_t *s, const struct rx_options *rx_opts)
+{
+  bool res = true;
+  char *storage;
+  storage = (char *) malloc (30);
+  strcpy (storage, str);
+
+  /* Parse line and then cast its containments by different molecules  */
+  int numof_cps = 0;
+  for (char *token = strtok (storage, ";"); token; token = strtok (NULL, ";")) 
+    {
+      /* Parse molecule by its name and density */
+      int numof_t = 0;
+      for (char *t = strtok (token, " "); t; t = strtok (NULL, " "))
+        {
+          if (numof_t == 0)
+            cps[numof_cps].name = conv_name_to_int (t);
+          else if (numof_t == 1)
+            cps[numof_cps].dens = atof (t);
+          numof_t++;
+        }
+      numof_cps++;
+    }
+
+  *s = numof_cps;
+  free (storage);
+  return res;
+}
+
+
+static void
+enter_collision_partners (struct col_partner *cps[7], 
+                          size_t *s,
+                          int fail_state,
+                          const struct rx_options *rx_opts,
+                          const char *history_file, 
+                          linenoiseCompletionCallback *completion,
+                          linenoiseHintsCallback *hints,
+                          allowed_value_cps isAllowed)
+{
+  size_t size = 30;
+  char *line;
+  line = (char *) malloc (size);
+  linenoiseHistoryLoad (history_file);
+  linenoiseSetCompletionCallback (completion);
+  linenoiseSetHintsCallback (hints);
+
+  while ((line = linenoise ("  >> ")) != NULL)
+    {
+      if (isAllowed (line, cps, s, rx_opts))
+        {
+          linenoiseHistoryAdd (line);
+          linenoiseHistorySave (history_file);
+          break;
+        }
+      else if (!strcmp (line, "quit"))
+        {
+          dialogue_usage (EXIT_REQUEST);
+        }
+      else 
+        {
+          dialogue_usage (fail_state);
+        } 
+      free (line);
+    }
+}
 
 void
 start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 
@@ -385,14 +489,14 @@ start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars,
   printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
 
   enter_float_parameter (&mc_pars->Tkin, TKIN_FAIL, opts, ".Tkin", NULL, 
-                                            hints_temp, isAllowedTemp);
+                                                  hints_temp, isAllowedTemp);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter background temperature ");
   printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
 
   enter_float_parameter (&mc_pars->Tbg, TBG_FAIL, opts, ".Tbg", NULL, 
-                                            hints_temp, isAllowedTemp);
+                                                  hints_temp, isAllowedTemp);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter column density for the molecule ");
@@ -403,5 +507,19 @@ start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars,
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter FWHM lines width ");
-  printf ("\x1B[1;37;40m[km s-1]\x1B[0;37;40m\n");
+  if (opts->hz_width) 
+    printf ("\x1B[1;37;40m[Hz]\x1B[0;37;40m\n");
+  else 
+    printf ("\x1B[1;37;40m[km s-1]\x1B[0;37;40m\n");
+
+  enter_float_parameter (&mc_pars->line_width, FWHM_FAIL, opts, ".fwhm",
+                                                NULL, NULL, isAllowedWidth);
+
+  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
+  printf ("Enter collision partners and their densities ");
+  printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
+
+  size_t s = 0;
+  enter_collision_partners (&mc_pars->cps, &s, COLLISION_FAIL, opts,
+      ".collisions", NULL, NULL, isAllowedCollisionPartners); 
 }
