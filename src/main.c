@@ -43,7 +43,10 @@ main (int argc, char ** argv)
 
   start_dialogue (&sf, &ef, &mc_pars, &rx_opts);
 
-  printf ("result: %e\n", mc_pars.coldens);
+  for (int i = 0; i < 7; i++)
+    {
+      printf ("result: %d %e\n", mc_pars.cps[i].name, mc_pars.cps[i].dens);
+    }
 
 	exit (EXIT_SUCCESS);
 }
