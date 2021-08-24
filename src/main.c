@@ -39,13 +39,14 @@ main (int argc, char ** argv)
   struct rx_options rx_opts;
   struct MC_parameters mc_pars;
   float sf, ef;
+  size_t s;
   int pathindex = set_rx_options (&rx_opts, argc, argv);
 
-  start_dialogue (&sf, &ef, &mc_pars, &rx_opts);
+  start_dialogue (&sf, &ef, &mc_pars, &s, &rx_opts);
 
-  for (int i = 0; i < 7; i++)
+  for (size_t i = 0; i < s; i++)
     {
-      printf ("result: %d %e\n", mc_pars.cps[i].name, mc_pars.cps[i].dens);
+      printf ("result: %d\t%e\n", mc_pars.cps[i].name, mc_pars.cps[i].dens);
     }
 
 	exit (EXIT_SUCCESS);

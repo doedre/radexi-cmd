@@ -39,7 +39,7 @@
 
 /* States of the dialogue w/ the user. All possible errors are collected here 
  * and used in 'dialogue_usage()' function. */
-static enum 
+enum 
 {
   PARAMETERS_NORMAL = 1,
   MOLECULE_FAIL,
@@ -377,7 +377,7 @@ conv_name_to_int (const char *str)
     res = PARA_H2;
   else if (!strncmp (str, "ORTHO_H2", 8) || !strncmp (str, "ortho_h2", 8))
     res = ORTHO_H2;
-  else if (!strncmp (str, "ELECTRONS", 9) || !strncmp (str, "elecctrons", 9))
+  else if (!strncmp (str, "ELECTRONS", 9) || !strncmp (str, "electrons", 9))
     res = ELECTRONS;
   else if (!strncmp (str, "HI", 2) || !strncmp (str, "hi", 2))
     res = HI;
@@ -397,24 +397,49 @@ isAllowedCollisionPartners (const char *str, struct col_partner cps[7],
 {
   bool res = true;
   char *storage;
-  storage = (char *) malloc (30);
+  storage = (char *) malloc (40);
   strcpy (storage, str);
 
   /* Parse line and then cast its containments by different molecules  */
   int numof_cps = 0;
-  for (char *token = strtok (storage, ";"); token; token = strtok (NULL, ";")) 
+  for (char *token = storage; token; token = strchr (token, ','))
     {
       /* Parse molecule by its name and density */
+      if (numof_cps != 0)
+        token++;
       int numof_t = 0;
-      for (char *t = strtok (token, " "); t; t = strtok (NULL, " "))
+      char *storage2;
+      storage2 = (char *) malloc (40);
+      strcpy (storage2, token);
+      for (char *t = strtok (storage2, " "); t; t = strtok (NULL, " "))
         {
           if (numof_t == 0)
-            cps[numof_cps].name = conv_name_to_int (t);
+              cps[numof_cps].name = conv_name_to_int (t);
           else if (numof_t == 1)
-            cps[numof_cps].dens = atof (t);
+            {
+              float d = atof (t);
+              cps[numof_cps].dens = atof (t);
+              if (rx_opts->dens_log_scale)
+                {
+                  if (d >= 0 && d <= 14)
+                    cps[numof_cps].dens = powf (10, d);
+                  else
+                    res = false;
+                }
+              else
+                {
+                  if (d >= 1 && d <= 1e14)
+                    cps[numof_cps].dens = d;
+                  else 
+                    res = false;
+                }
+            }
+          else 
+              break;
           numof_t++;
         }
       numof_cps++;
+      free (storage2);
     }
 
   *s = numof_cps;
@@ -462,7 +487,8 @@ enter_collision_partners (struct col_partner *cps[7],
 
 void
 start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 
-                                                 const struct rx_options *opts) 
+                                               size_t *s,
+                                               const struct rx_options *opts) 
 {
   if (!opts->quite_start)
     {
@@ -519,7 +545,6 @@ start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars,
   printf ("Enter collision partners and their densities ");
   printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
 
-  size_t s = 0;
-  enter_collision_partners (&mc_pars->cps, &s, COLLISION_FAIL, opts,
+  enter_collision_partners (&mc_pars->cps, s, COLLISION_FAIL, opts,
       ".collisions", NULL, NULL, isAllowedCollisionPartners); 
 }
