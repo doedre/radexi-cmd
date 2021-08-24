@@ -153,7 +153,7 @@ void set_default_rx_options (struct rx_options *rx_opts);
 typedef bool (allowed_value)(const char *str, float *par, 
                                           const struct rx_options *rx_opts);
 
-typedef bool (allowed_value_cps)(const char *str, struct col_partner **cps,
+typedef bool (allowed_value_cps)(const char *str, struct col_partner *cps,
                                  size_t *s, const struct rx_options *rx_opts);
 
 /* Initiates a dialogue w/ the user if no other input had been set  */

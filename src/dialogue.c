@@ -392,7 +392,7 @@ conv_name_to_int (const char *str)
 }
 
 static bool
-isAllowedCollisionPartners (const char *str, struct col_partner cps[7], 
+isAllowedCollisionPartners (const char *str, struct col_partner *cps, 
                                   size_t *s, const struct rx_options *rx_opts)
 {
   bool res = true;
@@ -449,7 +449,7 @@ isAllowedCollisionPartners (const char *str, struct col_partner cps[7],
 
 
 static void
-enter_collision_partners (struct col_partner *cps[7], 
+enter_collision_partners (struct col_partner *cps, 
                           size_t *s,
                           int fail_state,
                           const struct rx_options *rx_opts,
@@ -545,6 +545,6 @@ start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars,
   printf ("Enter collision partners and their densities ");
   printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
 
-  enter_collision_partners (&mc_pars->cps, s, COLLISION_FAIL, opts,
+  enter_collision_partners (mc_pars->cps, s, COLLISION_FAIL, opts,
       ".collisions", NULL, NULL, isAllowedCollisionPartners); 
 }

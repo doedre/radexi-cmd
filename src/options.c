@@ -117,6 +117,11 @@ set_rx_options (struct rx_options *opts, int argc, char ** argv)
 void 
 set_default_rx_options (struct rx_options *opts)
 {
+  opts->usage_mode = UM_DIALOGUE;
+  opts->quite_start = false;
+  opts->cmd_output = false;
+  opts->dens_log_scale = false;
+  opts->hz_width = false;
 }
 
 void 
