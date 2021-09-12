@@ -52,6 +52,15 @@ enum
   EXIT_REQUEST,
 };
 
+/* Those two are used to lower the amount of input functions used by this 
+ * program. Need to rethink their usage in future.  */
+typedef bool (allowed_value)(const char *str, float *par, 
+                                          const struct rx_options *rx_opts);
+
+typedef bool (allowed_value_cps)(const char *str, struct col_partner *cps,
+                                 size_t *s, const struct rx_options *rx_opts);
+
+
 /* This function takes the state argument, which is one from enum above, and 
  * then it either shows an error or exits (tries to do it good). */
 static void
@@ -272,7 +281,8 @@ isAllowedTemp (const char *str, float *val, const struct rx_options *rx_opts)
 }
 
 
-/* Casts str to float and checks if it's of the correct range. */
+/* Casts str to float and checks if it's of the correct column density range. 
+ * Also works w/ -L flag. */
 static bool
 isAllowedColdens (const char *str, float *val, 
                                               const struct rx_options *rx_opts)
@@ -301,6 +311,8 @@ isAllowedColdens (const char *str, float *val,
   return res;
 }
 
+/* Casts str to float and checks if it's of the correct line widths range. 
+ * Also works w/ -H flag. */
 static bool
 isAllowedWidth (const char *str, float *val, const struct rx_options *rx_opts)
 {
@@ -327,9 +339,7 @@ isAllowedWidth (const char *str, float *val, const struct rx_options *rx_opts)
   return res;
 }
 
-
-
-
+/* Used for typical float parameter entering. */
 static void
 enter_float_parameter  (float *par, 
                         int fail_state,
@@ -366,7 +376,7 @@ enter_float_parameter  (float *par,
     }
 }
 
-
+/* Converts collision partner's name into a number (or ColPartner enum).  */
 static enum ColPartner
 conv_name_to_int (const char *str)
 {
@@ -391,6 +401,7 @@ conv_name_to_int (const char *str)
   return res;
 }
 
+/* Parses a line to get collision partner's name and it's volume density. */
 static bool
 isAllowedCollisionPartners (const char *str, struct col_partner *cps, 
                                   size_t *s, const struct rx_options *rx_opts)
@@ -447,7 +458,7 @@ isAllowedCollisionPartners (const char *str, struct col_partner *cps,
   return res;
 }
 
-
+/* Equal to the enter_float(), but used for collision partner's retrieval.  */
 static void
 enter_collision_partners (struct col_partner *cps, 
                           size_t *s,
@@ -485,10 +496,13 @@ enter_collision_partners (struct col_partner *cps,
     }
 }
 
+/* This function is called by the main() for parameters entering. */
 void
-start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 
-                                               size_t *s,
-                                               const struct rx_options *opts) 
+start_dialogue (float *sfreq, 
+                float *efreq, 
+                struct MC_parameters *mc_pars,
+                size_t *s,
+                const struct rx_options *opts) 
 {
   if (!opts->quite_start)
     {
