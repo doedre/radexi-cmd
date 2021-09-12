@@ -33,6 +33,7 @@
 #include <getopt.h>   // getopt_long() defined here
 #include <limits.h>   // CHAR_MAX defined here
 #include <stddef.h>   // NULL defined here
+#include <string.h>
 
 #include "radexi.h"
 
@@ -48,10 +49,10 @@ enum
 
 /* Defines long options for usage by getopt_long(). */
 static struct option const long_options[] = {
-//  {"add-molecule", required_argument, NULL, ADD_MOLECULE_OPTION},
+  {"add-molecule", required_argument, NULL, ADD_MOLECULE_OPTION},
 //  {"list-molecules", no_argument, NULL, LIST_MOLECULES_OPTION},
 //  {"delete-molecule", required_argument, NULL, DELETE_MOLECULE_OPTION},
-  {"log-density", no_argument, NULL, 'l'},
+  {"log-density", no_argument, NULL, 'L'},
   {"hz-width", no_argument, NULL, 'H'},
   {"help", no_argument, NULL, 'h'},
   {"result", required_argument, NULL, 'r'},
@@ -70,7 +71,7 @@ set_rx_options (struct rx_options *opts, int argc, char ** argv)
     {
       switch (opt)
         {
-        case 'l':
+        case 'L':
           opts->dens_log_scale = true;
           break;
 
@@ -94,12 +95,16 @@ set_rx_options (struct rx_options *opts, int argc, char ** argv)
           break;
 
         case ADD_MOLECULE_OPTION:
+          opts->usage_mode = UM_MOLECULAR_FILE_ADD;
+          strcpy (opts->molecule_name, optarg);
           break;
 
         case LIST_MOLECULES_OPTION:
+          opts->usage_mode = UM_MOLECULAR_FILE_LIST;
           break;
 
         case DELETE_MOLECULE_OPTION:
+          opts->usage_mode = UM_MOLECULAR_FILE_DELETE;
           break;
 
         case VERSION_OPTION:

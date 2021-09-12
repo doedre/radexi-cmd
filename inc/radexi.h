@@ -38,16 +38,23 @@
 #include <stdbool.h>
 
 #define PROGRAM_NAME  "radexi"
+#define RXI_MOLECULE_MAX_SIZE 15  /* Maximum lenght for the molecule name 
+                                     defined by the user  */
 
 
 /* Defines how molecular cloud's parameters will be collected. */
 enum UsageMode
 {
-  /* Whether via dialogue w/ the user (if no file given) */
+  /* Whether via dialogue w/ the user (if no file given). */
   UM_DIALOGUE = 1,
 
-  /* Or via special input file (if it was referenced)  */
-  UM_FILE
+  /* Or via special input file (if it was referenced).  */
+  UM_FILE,
+
+  /* Otherwise it can be used to manipulate molecular data files. */
+  UM_MOLECULAR_FILE_ADD,
+  UM_MOLECULAR_FILE_DELETE,
+  UM_MOLECULAR_FILE_LIST
 };
 
 
@@ -66,6 +73,10 @@ struct rx_options
   /* Path to the file w/ results. */
   char out_file_path[80];
 
+  /* Molecule name defined by the user when adding one in case of 
+   * UM_MOLECULAR_FILE usage_mode.  */
+  char molecule_name[RXI_MOLECULE_MAX_SIZE];
+
   /* Whether resulting table should be printed in the terminal or not.
    * -o flag: disabled by default */
   bool cmd_output;
@@ -76,11 +87,11 @@ struct rx_options
 
   /* If 'true', then instead of writing densities in scientific format user 
    * should only write power of 10.
-   * -l of --log-density flag: disabled by default */
+   * -L of --log-density flag: disabled by default */
   bool dens_log_scale;
 
   /* if 'true', then use [GHz] line width instead of [km -s].
-   * -g og --ghz-width flag: disabled by default  */
+   * -H og --hz-width flag: disabled by default  */
   bool hz_width;
 
   /* If user defined a path for the file w/ resilts. 
@@ -123,7 +134,6 @@ struct col_partner
   double dens;   /* and it's density   */
 };
 
-
 /* Molecular cloud parameters used as starting data for calculations.  */
 struct MC_parameters
 {
@@ -134,7 +144,6 @@ struct MC_parameters
   float line_width;   /* line width equal for all lines */
   struct col_partner cps[7];  /* possible collision partners  */
 };
-
 
 /* Checks what needs to be printed if there are some errors during the launch
  * (most commonly they appear because of the user's input). Whether prints a 
@@ -149,16 +158,18 @@ int set_rx_options (struct rx_options *rx_opts, int argc, char **argv);
 /* Sets all parameters to defaults before proceeding w/ 'set_rx_options()'  */
 void set_default_rx_options (struct rx_options *rx_opts);
 
-
+/*
 typedef bool (allowed_value)(const char *str, float *par, 
                                           const struct rx_options *rx_opts);
 
 typedef bool (allowed_value_cps)(const char *str, struct col_partner *cps,
                                  size_t *s, const struct rx_options *rx_opts);
-
+*/
 /* Initiates a dialogue w/ the user if no other input had been set  */
 void start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 
                                             size_t *s,
                                             const struct rx_options *rx_opts);
+
+void operate_molecular_files (char *mol_file, const struct rx_options *rx_opts);
 
 #endif  // RADEXI_H

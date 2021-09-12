@@ -42,11 +42,16 @@ main (int argc, char ** argv)
   size_t s;
   int pathindex = set_rx_options (&rx_opts, argc, argv);
 
-  start_dialogue (&sf, &ef, &mc_pars, &s, &rx_opts);
-
-  for (size_t i = 0; i < s; i++)
+  if (rx_opts.usage_mode == UM_DIALOGUE)
     {
-      printf ("result: %d\t%e\n", mc_pars.cps[i].name, mc_pars.cps[i].dens);
+      start_dialogue (&sf, &ef, &mc_pars, &s, &rx_opts);
+    }
+  else if (rx_opts.usage_mode == UM_FILE)
+    {
+    }
+  else
+    {
+      operate_molecular_files (argv[pathindex], &rx_opts);
     }
 
 	exit (EXIT_SUCCESS);
