@@ -40,21 +40,19 @@
 #include <string.h>
 
 static void
-write_molecular_energy_levels (FILE *molfile, const char *mol_name)
+write_csv  (FILE *molfile, const char *mol_name, const char *outfile_suf)
 {
   char *line;
-  size_t n = 50;
+  size_t n = 200;
   line = (char *) malloc (n);
 
-  char *molecular_enlev_file_name;
-  molecular_enlev_file_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+16);
-  sprintf  (molecular_enlev_file_name, 
-            "data/%s/%s-enlev.csv", mol_name, mol_name);
+  char *csv_name;
+  csv_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+16);
+  sprintf  (csv_name, "data/%s/%s.csv", mol_name, outfile_suf);
 
-  FILE *mev = fopen (molecular_enlev_file_name, "w");
-  free (molecular_enlev_file_name);
+  FILE *csv = fopen (csv_name, "w");
+  free (csv_name);
 
-//  fprintf (mev, "level,energy,weight,qn\n");
   while (fgets (line, n, molfile))
     {
       if (!strncmp (line, "!", 1))
@@ -64,7 +62,7 @@ write_molecular_energy_levels (FILE *molfile, const char *mol_name)
       for (char *token = strtok (line, " "); token; token = strtok (NULL, " "))
         {
           if (!isFirst)
-              fprintf (mev, ",");
+              fprintf (csv, ",");
           /* Removes control characters  */
           char *token_clean = token;
           int i;
@@ -73,15 +71,16 @@ write_molecular_energy_levels (FILE *molfile, const char *mol_name)
               if (iscntrl ((unsigned char) token[i]))
                 token_clean[i++] = ' ';
             }
-          fprintf (mev, "%s", token_clean);
+          fprintf (csv, "%s", token_clean);
           isFirst = false;
         }
-      fprintf (mev, "\n");
+      fprintf (csv, "\n");
     }
 
   free (line);
-  fclose (mev);
+  fclose (csv);
 }
+
 
 /* This function controls adding new molecules to the database. */
 static void
@@ -141,7 +140,7 @@ add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
   free (molecular_info_file_name);
 
   char *line;
-  size_t n = 50;
+  size_t n = 200;
   line = (char *) malloc (n);
 
    for (int i = 0; i < 7; i++)
@@ -167,9 +166,14 @@ add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
         }
     }  
    
-  write_molecular_energy_levels (molfile, rx_opts->molecule_name);
+  write_csv (molfile, rx_opts->molecule_name, "enlev");
   fgets (line, 15, molfile);
   fprintf (mi, "Number of radiative transitions: %s\n", line);
+  fgets (line, 200, molfile);
+  write_csv (molfile, rx_opts->molecule_name, "radtr");
+  fgets (line, 15, molfile);
+  fprintf (mi, "Number of collision partners: %s\n", line);
+  fgets (line, 200, molfile);
 
   fclose (molfile);
   fclose (mi);
