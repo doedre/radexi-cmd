@@ -154,7 +154,8 @@ define_collision_partner (FILE *molfile, FILE *mol_info_file)
   size_t n = 200;
   line = (char *) malloc (n);
 
-  fgets (line, n, molfile);
+  if (!fgets (line, n, molfile))
+    return 0;
 
   if (!strncmp (line, "!", 1))
     return 0;
@@ -171,7 +172,7 @@ define_collision_partner (FILE *molfile, FILE *mol_info_file)
   fgets (line, n, molfile);
   fgets (line, n, molfile);
   fgets (line, n, molfile);
-  fprintf (mol_info_file, "Collisional temperatures: %s", line);
+  fprintf (mol_info_file, "Collisional temperatures: %s\n", line);
   fgets (line, n, molfile);
 
   free (line);
@@ -290,9 +291,18 @@ add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
       free (cp_name);
     }
   if (cp == -1)
-    printf ("Error with collision partners\n");
+    {
+      /* Maybe instead of exit should let the user write the name */
+      printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
+      printf ("Can't find the name of collision partner. Exiting.");
+      printf ("\x1B[0;37;40m\x1B[3;37;40m\n");
+    }
   else 
-    printf ("All is ok\n");
+    {
+      printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
+      printf ("%s molecule is written.", rx_opts->molecule_name);
+      printf ("\x1B[0;37;40m\x1B[3;37;40m\n");
+    }
 
   fclose (molfile);
   fclose (mi);
