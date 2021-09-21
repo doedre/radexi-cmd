@@ -38,8 +38,10 @@
 #include <stdbool.h>
 
 #define PROGRAM_NAME  "radexi"
-#define RXI_MOLECULE_MAX_SIZE 15  /* Maximum lenght for the molecule name 
+#define RXI_MOLECULE_MAX_SIZE 15  /* Max lenght for the molecule name 
                                      defined by the user  */
+#define RXI_MAX_COLL_PARTNERS 7   /* Max number of collision partners */
+#define RXI_MAX_COLL_TEMPS    20  /* Max number of collisional temperatures */
 
 
 /* Defines how molecular cloud's parameters will be collected. */
@@ -132,17 +134,36 @@ struct col_partner
 {
   enum ColPartner name;  /* collision partner's name */
   double dens;   /* and it's density   */
+  unsigned int numof_coltr; /* number of collisional transitions  */
+  float temps[RXI_MAX_COLL_TEMPS];  /* collisional temperatures */
 };
 
 /* Molecular cloud parameters used as starting data for calculations.  */
 struct MC_parameters
 {
-  char molecule[10];  /* name of the molecule */
+  char molecule[RXI_MOLECULE_MAX_SIZE];     /* molecule name  */
   float Tkin;         /* kinetic temperature  */
   float Tbg;          /* background temparature */
   float coldens;      /* molecular column density */
   float line_width;   /* line width equal for all lines */
-  struct col_partner cps[7];  /* possible collision partners  */
+  struct col_partner cps[RXI_MAX_COLL_PARTNERS];  /* collision partners  */
+};
+
+/* Base information about the molecule. Used for data control: whether 
+ * specified databases contain stated amount of parameters. */
+struct molecule_info
+{
+  char name[RXI_MOLECULE_MAX_SIZE]; /* molecule name  */
+  float weight;             /* molecular weight [a.m.u.]  */
+  unsigned int numof_enlev; /* number of energy levels  */
+  unsigned int numof_radtr; /* number of radiative transitions  */ 
+  unsigned int numof_colpart; /* number of collision partners */
+};
+
+struct radexi_data
+{
+  struct MC_parameters mc_par;
+  struct molecule_info mi;
 };
 
 /* Checks what needs to be printed if there are some errors during the launch
@@ -158,18 +179,14 @@ int set_rx_options (struct rx_options *rx_opts, int argc, char **argv);
 /* Sets all parameters to defaults before proceeding w/ 'set_rx_options()'  */
 void set_default_rx_options (struct rx_options *rx_opts);
 
-/*
-typedef bool (allowed_value)(const char *str, float *par, 
-                                          const struct rx_options *rx_opts);
-
-typedef bool (allowed_value_cps)(const char *str, struct col_partner *cps,
-                                 size_t *s, const struct rx_options *rx_opts);
-*/
 /* Initiates a dialogue w/ the user if no other input had been set  */
-void start_dialogue (float *sfreq, float *efreq, struct MC_parameters *mc_pars, 
+void start_dialogue (float *sfreq, float *efreq, struct radexi_data *rxi, 
                                             size_t *s,
                                             const struct rx_options *rx_opts);
 
+int reading_data (struct radexi_data *rxi);
+
+/* Reads usage_mode and decides what to do with the given molecular file  */
 void operate_molecular_files (char *mol_file, const struct rx_options *rx_opts);
 
 #endif  // RADEXI_H
