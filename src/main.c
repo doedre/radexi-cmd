@@ -45,6 +45,8 @@ main (int argc, char ** argv)
   if (rx_opts.usage_mode == UM_DIALOGUE)
     {
       start_dialogue (&sf, &ef, &mc_pars, &s, &rx_opts);
+      printf ("st freq: %f\t end freq: %f\n", sf, ef);
+      printf ("kin temp: %f\n", mc_pars.Tkin); 
     }
   else if (rx_opts.usage_mode == UM_FILE)
     {

@@ -40,21 +40,19 @@
 #include <string.h>
 
 static void
-write_molecular_energy_levels (FILE *molfile, const char *mol_name)
+write_csv  (FILE *molfile, const char *mol_name, const char *outfile_suf)
 {
   char *line;
-  size_t n = 50;
+  size_t n = 200;
   line = (char *) malloc (n);
 
-  char *molecular_enlev_file_name;
-  molecular_enlev_file_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+16);
-  sprintf  (molecular_enlev_file_name, 
-            "data/%s/%s-enlev.csv", mol_name, mol_name);
+  char *csv_name;
+  csv_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+16);
+  sprintf  (csv_name, "data/%s/%s.csv", mol_name, outfile_suf);
 
-  FILE *mev = fopen (molecular_enlev_file_name, "w");
-  free (molecular_enlev_file_name);
+  FILE *csv = fopen (csv_name, "w");
+  free (csv_name);
 
-//  fprintf (mev, "level,energy,weight,qn\n");
   while (fgets (line, n, molfile))
     {
       if (!strncmp (line, "!", 1))
@@ -64,7 +62,7 @@ write_molecular_energy_levels (FILE *molfile, const char *mol_name)
       for (char *token = strtok (line, " "); token; token = strtok (NULL, " "))
         {
           if (!isFirst)
-              fprintf (mev, ",");
+              fprintf (csv, ",");
           /* Removes control characters  */
           char *token_clean = token;
           int i;
@@ -73,14 +71,112 @@ write_molecular_energy_levels (FILE *molfile, const char *mol_name)
               if (iscntrl ((unsigned char) token[i]))
                 token_clean[i++] = ' ';
             }
-          fprintf (mev, "%s", token_clean);
+          fprintf (csv, "%s", token_clean);
           isFirst = false;
         }
-      fprintf (mev, "\n");
+      fprintf (csv, "\n");
     }
 
   free (line);
-  fclose (mev);
+  fclose (csv);
+}
+
+/* Used to extract collision partner's name from the string without the user */
+static enum ColPartner
+extract_col_partner (char * line)
+{
+  enum ColPartner result = H2;
+  /* Possible names */
+  unsigned long numof_variants = 12;
+  char *variants[] = { 
+                        " p-h2 ", " para-h2 ", "para h2 ",
+                        " o-h2 ", " ortho-h2 ", "ortho h2 ", 
+                        " h2 ", "-h2 ", " h2-",
+                        " he ", "-he ", "he-" 
+                        }; 
+  for (unsigned long i = 0; i < strlen (line); i++)
+    {
+      if (isalpha (line[i]))
+        line[i] = tolower (line[i]);
+    }
+
+  unsigned long pos = 0;
+  for (; pos < numof_variants; pos++)
+    {
+      if (strstr (line, variants[pos]))
+        break;
+    }
+
+  if (pos < 3)
+    result = PARA_H2;
+  else if (pos < 6)
+    result = ORTHO_H2;
+  else if (pos < 9)
+    result = H2;
+  else if (pos < 12)
+    result = He;
+  else 
+    result = NO_MOLECULE;
+
+  return result;
+}
+
+static void
+conv_int_to_name (int cp, char *cp_name)
+{
+  if (cp == H2)
+    strcpy (cp_name, "H2");
+  else if (cp == PARA_H2)
+    strcpy (cp_name, "pH2");
+  else if (cp == ORTHO_H2)
+    strcpy (cp_name, "oH2");
+  else if (cp == ELECTRONS)
+    strcpy (cp_name, "electrons");
+  else if (cp == HI)
+    strcpy (cp_name, "HI");
+  else if (cp == He)
+    strcpy (cp_name, "He");
+  else if (cp == HII)
+    strcpy (cp_name, "HII");
+  else 
+    cp_name[0] = '\0';
+}
+
+/* Writes collision partner's parameters into the .info file.
+ * returns:
+ * - one of the collision partners as defined in ColPartner enum
+ * - -1 if no collision partner was found
+ * - 0 if it's an end of file  */
+static int
+define_collision_partner (FILE *molfile, FILE *mol_info_file)
+{
+  char *line;
+  size_t n = 200;
+  line = (char *) malloc (n);
+
+  if (!fgets (line, n, molfile))
+    return 0;
+
+  if (!strncmp (line, "!", 1))
+    return 0;
+
+  enum ColPartner cp = extract_col_partner (line);
+  if (cp == NO_MOLECULE)
+    return -1;
+
+  fprintf (mol_info_file, "Collision partner: %d\n", cp);
+  fgets (line, n, molfile);
+  fgets (line, n, molfile);
+  fprintf (mol_info_file, "Number of collisional transitions: %s", line);
+  fgets (line, n, molfile);
+  fgets (line, n, molfile);
+  fgets (line, n, molfile);
+  fgets (line, n, molfile);
+  fprintf (mol_info_file, "Collisional temperatures: %s\n", line);
+  fgets (line, n, molfile);
+
+  free (line);
+  return cp;
 }
 
 /* This function controls adding new molecules to the database. */
@@ -137,11 +233,13 @@ add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
                                       rx_opts->molecule_name, 
                                       rx_opts->molecule_name);
 
+  /* File with information about the molecule? which cant be loaded in .csv 
+   * database properly  */
   FILE *mi = fopen (molecular_info_file_name, "w");
   free (molecular_info_file_name);
 
   char *line;
-  size_t n = 50;
+  size_t n = 200;
   line = (char *) malloc (n);
 
    for (int i = 0; i < 7; i++)
@@ -167,9 +265,44 @@ add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
         }
     }  
    
-  write_molecular_energy_levels (molfile, rx_opts->molecule_name);
-  fgets (line, 15, molfile);
-  fprintf (mi, "Number of radiative transitions: %s\n", line);
+  /* Writing .csv file with energy levels */
+  write_csv (molfile, rx_opts->molecule_name, "enlev");
+
+  fgets (line, n, molfile);
+  fprintf (mi, "Number of radiative transitions: %s", line);
+  fgets (line, n, molfile);
+
+  /* Writing .csv file with radiative transitions */
+  write_csv (molfile, rx_opts->molecule_name, "radtr");
+
+  fgets (line, n, molfile);
+  fprintf (mi, "Number of collision partners: %s\n", line);
+  fgets (line, n, molfile);
+
+  /* Writing the names of collision partners (user defines them by himself as 
+   * there is no standart in LAMDA database)  */
+  int cp = 0;
+  while ((cp = define_collision_partner(molfile, mi)) > 0)
+    {
+      char *cp_name;
+      cp_name = (char *) malloc (10);
+      conv_int_to_name (cp, cp_name);
+      write_csv (molfile, rx_opts->molecule_name, cp_name);
+      free (cp_name);
+    }
+  if (cp == -1)
+    {
+      /* Maybe instead of exit should let the user write the name */
+      printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
+      printf ("Can't find the name of collision partner. Exiting.");
+      printf ("\x1B[0;37;40m\x1B[3;37;40m\n");
+    }
+  else 
+    {
+      printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
+      printf ("%s molecule is written.", rx_opts->molecule_name);
+      printf ("\x1B[0;37;40m\x1B[3;37;40m\n");
+    }
 
   fclose (molfile);
   fclose (mi);
