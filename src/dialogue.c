@@ -150,7 +150,7 @@ static bool
 isAllowedMolecule (const char * str)
 {
   bool res = false;
-  if (!strcmp (str, "hcno-test") || !strcmp (str, "ch3oh_e"))
+  if (!strcmp (str, "hcno-test") || !strcmp (str, "hco"))
     res = true;
   return res;
 }

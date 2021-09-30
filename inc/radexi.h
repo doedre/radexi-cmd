@@ -39,10 +39,19 @@
 
 #define PROGRAM_NAME  "radexi"
 #define RXI_MOLECULE_MAX_SIZE 15  /* Max lenght for the molecule name 
-                                     defined by the user  */
-#define RXI_MAX_COLL_PARTNERS 7   /* Max number of collision partners */
-#define RXI_MAX_COLL_TEMPS    20  /* Max number of collisional temperatures */
+                                     defined by the user                    */
+#define RXI_MAX_EXCESS_SIZE   10  /* Max characters to read from .csv line  */
+#define RXI_MAX_ENLEV         300 /* Max number of energy levels            */
+#define RXI_MAX_RADTR         1000  /* Max number of radiative transitions  */
+#define RXI_MAX_COLL_PARTNERS 7   /* Max number of collision partners       */
+#define RXI_MAX_COLL_TEMPS    30  /* Max number of collisional temperatures */
+#define RXI_MAX_COLL_TRANS    3000  /* Max number of collision transitions  */
 
+
+/* Physical constants */
+extern const double sol;              /* speed of light       [cm s-1]      */
+extern const double hP;               /* Planck's constant    [erg s]       */
+extern const double kB;               /* Boltzman's constant  [erg K-1]     */
 
 /* Defines how molecular cloud's parameters will be collected. */
 enum UsageMode
@@ -127,37 +136,67 @@ enum ColPartner
   NO_MOLECULE
 };
 
-
 /* Collision partner's name and it's density in one place. Used in 
  * 'MC_parameters' structure to store collision partners as an array.  */
 struct col_partner
 {
-  enum ColPartner name;  /* collision partner's name */
-  double dens;   /* and it's density   */
-  unsigned int numof_coltr; /* number of collisional transitions  */
-  float temps[RXI_MAX_COLL_TEMPS];  /* collisional temperatures */
+  enum ColPartner name;             /* collision partner's name           */
+  double dens;                      /* and it's density                   */
+  unsigned int numof_coltr;         /* number of collisional transitions  */
+  unsigned int numof_temps;         /* number of collisional temperatures */
+  unsigned int ucollev[RXI_MAX_COLL_TRANS]; /* upper collisional level    */
+  unsigned int lcollev[RXI_MAX_COLL_TRANS]; /* lower collisional level    */
+  float temps[RXI_MAX_COLL_TEMPS];  /* collisional temperatures           */
+  float coef[RXI_MAX_ENLEV][RXI_MAX_ENLEV]; /* collisional coefficients   */
 };
 
 /* Molecular cloud parameters used as starting data for calculations.  */
 struct MC_parameters
 {
-  char molecule[RXI_MOLECULE_MAX_SIZE];     /* molecule name  */
-  float Tkin;         /* kinetic temperature  */
-  float Tbg;          /* background temparature */
-  float coldens;      /* molecular column density */
-  float line_width;   /* line width equal for all lines */
-  struct col_partner cps[RXI_MAX_COLL_PARTNERS];  /* collision partners  */
+  char molecule[RXI_MOLECULE_MAX_SIZE];     /* molecule name              */
+  float Tkin;                               /* kinetic temperature        */
+  float Tbg;                                /* background temparature     */
+  float coldens;                            /* molecular column density   */
+  float line_width;                         /* line width equal for all lines */
+  double total_density;                     /* total partner's density    */
+  struct col_partner cps[RXI_MAX_COLL_PARTNERS];  /* collision partners   */
+  float uprate[RXI_MAX_ENLEV][RXI_MAX_ENLEV];    /* upward rates         */
+  double totrate[RXI_MAX_ENLEV];            /* total collision rate       */
+};
+
+/* Data from enlev.csv will be stored here  */
+struct energy_levels
+{
+  double term;                        /* energy level [cm-1]              */
+  float statw;                        /* statistical weight               */
+  char qnums[RXI_MAX_EXCESS_SIZE];    /* quantum numbers in one string
+                                         (writing excess strings here)    */
+};
+
+/* Data from radtr.csv will be stored here  */
+struct radiative_transitions
+{
+  unsigned int ulev;                  /* upper level number               */
+  unsigned int llev;                  /* lower level number               */
+  double a_einst;                     /* Einstein's coefficient [s-1]     */
+  float spfreq;                       /* spectral frequency [GHz]         */
+  float enup;                         /* energy of upper level [K]        */
+  double xnu;                         /* line frequency in [cm-1]         */
+  char tail[RXI_MAX_EXCESS_SIZE];
 };
 
 /* Base information about the molecule. Used for data control: whether 
  * specified databases contain stated amount of parameters. */
 struct molecule_info
 {
-  char name[RXI_MOLECULE_MAX_SIZE]; /* molecule name  */
-  float weight;             /* molecular weight [a.m.u.]  */
-  unsigned int numof_enlev; /* number of energy levels  */
-  unsigned int numof_radtr; /* number of radiative transitions  */ 
-  unsigned int numof_colpart; /* number of collision partners */
+  char name[RXI_MOLECULE_MAX_SIZE]; /* molecule name                      */
+  float weight;                     /* molecular weight [a.m.u.]          */
+  unsigned int numof_enlev;         /* number of energy levels            */
+  unsigned int numof_radtr;         /* number of radiative transitions    */ 
+  unsigned int numof_colpart;       /* number of collision partners       */
+  struct energy_levels enlev[RXI_MAX_ENLEV];  /* energy levels info       */
+  struct radiative_transitions radtr[RXI_MAX_RADTR];  /* radiative transitions
+                                                         info             */
 };
 
 struct radexi_data
@@ -184,7 +223,12 @@ void start_dialogue (float *sfreq, float *efreq, struct radexi_data *rxi,
                                             size_t *s,
                                             const struct rx_options *rx_opts);
 
-int reading_data (struct radexi_data *rxi);
+/* Reads .info file.
+ * Returns:
+ * - 0 on success */
+int read_data (struct radexi_data *rxi);
+
+void conv_int_to_name (int cp, char *cp_name);
 
 /* Reads usage_mode and decides what to do with the given molecular file  */
 void operate_molecular_files (char *mol_file, const struct rx_options *rx_opts);

@@ -33,6 +33,12 @@
 
 #include "radexi.h"
 
+/* Physical constants */
+const double sol  = 2.99792458e10;    /* speed of light       [cm s-1]      */
+const double hP   = 6.6260963e-27;    /* Planck's constant    [erg s]       */
+const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
+
+
 int
 main (int argc, char ** argv)
 {
@@ -45,10 +51,7 @@ main (int argc, char ** argv)
   if (rx_opts.usage_mode == UM_DIALOGUE)
     {
       start_dialogue (&sf, &ef, &rxi, &s, &rx_opts);
-      reading_data (&rxi);
-      printf ("name: %s, weight: %f, numofcolpart: %u", rxi.mi.name, 
-                                                        rxi.mi.weight,
-                                                        rxi.mi.numof_colpart);
+      read_data (&rxi);
     }
   else if (rx_opts.usage_mode == UM_FILE)
     {
