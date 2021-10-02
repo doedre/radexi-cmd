@@ -59,21 +59,44 @@ If you see no errors then all was installed correctly.
 ## Usage
 Here I will describe the most common examples of usage. If you want to know more features follow the full usage guide (~ minutes).
 
-###### Running the dialogue 
+##### Running the dialogue 
 
 ```bash
 $ radexi
 ```
 
-###### Adding molecule to the database
+##### Adding molecule to the database
 In order to use any molecule from LAMDA database you can add it to `radexi`'s local database
-
+you
 ```bash
-$ radexi --add-molecule <*name*> <*path to the database file*>
+$ radexi --add-molecule <𝘯𝘢𝘮𝘦> <𝘱𝘢𝘵𝘩 𝘵𝘰 𝘵𝘩𝘦 𝘥𝘢𝘵𝘢𝘣𝘢𝘴𝘦 𝘧𝘪𝘭𝘦>
 ```
 
 So if you want to add methanol molecule and call it *my_favourite_one* type this
 
 ```bash
-$ radexi --add-molecule my_favourite_one *path/to/the/file*/ch3oh.dat
+$ radexi --add-molecule my_favourite_one 𝘱𝘢𝘵𝘩/𝘵𝘰/𝘵𝘩𝘦/𝘧𝘪𝘭𝘦/ch3oh.dat
 ```
+
+##### Using input files
+`-r` flag specifies the location and name of the output file (if no name was specified it generates it's own). Without this flag output will be stored in `$HOME/radexi/results/`.
+
+```bash
+$ radexi 𝘱𝘢𝘵𝘩/𝘵𝘰/𝘵𝘩𝘦/𝘧𝘪𝘭𝘦/file -r 𝘰𝘵𝘩𝘦𝘳/𝘱𝘢𝘵𝘩/result.txt
+```
+
+---
+# Full guide
+## Notes on the installation
+## Usage
+### Starting guide
+## When you should use RADEX
+
+# For interested in this program
+### How to report a bug
+### How to ask for adding/suggesting a new feature
+### How to contribute
+## My thanks
+## Plans for future releases
+
+# References
