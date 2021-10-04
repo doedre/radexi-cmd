@@ -194,8 +194,8 @@ reading_radtr (struct radexi_data *rxi)
             }
           t++;
         }
-      rxi->mi.radtr[rt].xnu = rxi->mi.enlev[rxi->mi.radtr[rt].ulev].term - 
-                              rxi->mi.enlev[rxi->mi.radtr[rt].llev].term;
+      rxi->mi.radtr[rt].xnu = rxi->mi.enlev[rxi->mi.radtr[rt].ulev-1].term - 
+                              rxi->mi.enlev[rxi->mi.radtr[rt].llev-1].term;
       rt++;
     }
   fclose (radtr_file);
@@ -280,7 +280,6 @@ reading_colpart (struct radexi_data *rxi)
 static int 
 prepare_for_calculation (struct radexi_data *rxi)
 {
-  float matrix[RXI_MAX_ENLEV][RXI_MAX_ENLEV];
   for (unsigned int cp = 0; rxi->mc_par.cps[cp].name != 0; cp++)
     {
       rxi->mc_par.total_density += rxi->mc_par.cps[cp].dens;
@@ -302,7 +301,6 @@ prepare_for_calculation (struct radexi_data *rxi)
                                         rxi->crate[i][j];
           else 
             rxi->crate[j][i] = 0;
-          printf ("Uprate %d %d -> %e\n", j, i, matrix[j][i]);
         }
     }
   for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
