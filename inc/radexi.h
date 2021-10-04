@@ -162,6 +162,14 @@ struct MC_parameters
   struct col_partner cps[RXI_MAX_COLL_PARTNERS];  /* collision partners   */
 };
 
+struct bg_field
+{
+//  float bright[RXI_MAX_RADTR];        /* background brightness (RJ)       */
+  float intens[RXI_MAX_RADTR];        /* background intensity 
+                                         [erg s-1 cm-2 Hz-1 sr-1]         */
+//  float temp[RXI_MAX_RADTR];          /* background temperature (BB)      */
+};
+
 /* Data from enlev.csv will be stored here  */
 struct energy_levels
 {
@@ -203,6 +211,7 @@ struct radexi_data
   struct molecule_info mi;
   float crate[RXI_MAX_ENLEV][RXI_MAX_ENLEV]; /*    collision rates         */
   float totrate[RXI_MAX_ENLEV];              /* total collision rate       */
+  struct bg_field bg;
 };
 
 /* Checks what needs to be printed if there are some errors during the launch
@@ -228,7 +237,10 @@ void start_dialogue (float *sfreq, float *efreq, struct radexi_data *rxi,
  * - 0 on success */
 int read_data (struct radexi_data *rxi);
 
+/* Used to convert enum with collision partners to their names.  */
 void conv_int_to_name (int cp, char *cp_name);
+
+int calculate_bg_field (struct radexi_data *rxi);
 
 /* Reads usage_mode and decides what to do with the given molecular file  */
 void operate_molecular_files (char *mol_file, const struct rx_options *rx_opts);

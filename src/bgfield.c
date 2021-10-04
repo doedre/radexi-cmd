@@ -1,7 +1,6 @@
-/*	main.c
+/*	bgfield.c
  *
- * The main file, where the 'main' function located. At first it controls
- * flags that were added to the program call, then it decides what to do.
+ * Calculates background field in three possible variants.
  *
  * ----------------------------------------------------------------------
  *
@@ -30,37 +29,20 @@
  *
  * ---------------------------------------------------------------------*/
 
-
 #include "radexi.h"
 
-/* Physical constants */
-const double sol  = 2.99792458e10;    /* speed of light       [cm s-1]      */
-const double hP   = 6.6260963e-27;    /* Planck's constant    [erg s]       */
-const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
-
+#include <math.h>
 
 int
-main (int argc, char ** argv)
+calculate_bg_field (struct radexi_data *rxi)
 {
-  struct rx_options rx_opts;
-  struct radexi_data rxi;
-  float sf, ef;
-  size_t s;
-  int pathindex = set_rx_options (&rx_opts, argc, argv);
-
-  if (rx_opts.usage_mode == UM_DIALOGUE)
+  for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
     {
-      start_dialogue (&sf, &ef, &rxi, &s, &rx_opts);
-      read_data (&rxi);
-      calculate_bg_field(&rxi);
-    }
-  else if (rx_opts.usage_mode == UM_FILE)
-    {
-    }
-  else
-    {
-      operate_molecular_files (argv[pathindex], &rx_opts);
+      rxi->bg.intens[i] = 2 * hP * sol * pow (rxi->mi.radtr[i].xnu, 3)    / \
+            (exp (hP * sol / kB * rxi->mi.radtr[i].xnu / rxi->mc_par.Tbg) - 1);
+      printf ("bgField: %.3e\n", rxi->bg.intens[i]);
     }
 
-	exit (EXIT_SUCCESS);
+  return 0;
 }
+
