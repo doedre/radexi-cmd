@@ -160,8 +160,6 @@ struct MC_parameters
   float line_width;                         /* line width equal for all lines */
   double total_density;                     /* total partner's density    */
   struct col_partner cps[RXI_MAX_COLL_PARTNERS];  /* collision partners   */
-  float uprate[RXI_MAX_ENLEV][RXI_MAX_ENLEV];    /* upward rates         */
-  double totrate[RXI_MAX_ENLEV];            /* total collision rate       */
 };
 
 /* Data from enlev.csv will be stored here  */
@@ -203,6 +201,8 @@ struct radexi_data
 {
   struct MC_parameters mc_par;
   struct molecule_info mi;
+  float crate[RXI_MAX_ENLEV][RXI_MAX_ENLEV]; /*    collision rates         */
+  float totrate[RXI_MAX_ENLEV];              /* total collision rate       */
 };
 
 /* Checks what needs to be printed if there are some errors during the launch

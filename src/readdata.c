@@ -286,7 +286,7 @@ prepare_for_calculation (struct radexi_data *rxi)
       rxi->mc_par.total_density += rxi->mc_par.cps[cp].dens;
       for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
         for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-          matrix[i][j] += rxi->mc_par.cps[cp].dens                        * \
+          rxi->crate[i][j] += rxi->mc_par.cps[cp].dens                        * \
                           rxi->mc_par.cps[cp].coef[i][j];
     }
 
@@ -296,24 +296,19 @@ prepare_for_calculation (struct radexi_data *rxi)
         {
           double ediff = rxi->mi.enlev[i].term - rxi->mi.enlev[j].term;
           if ((ediff > 0) && (hP*sol/kB * ediff / rxi->mc_par.Tkin < 160))
-             rxi->mc_par.uprate[j][i] = rxi->mi.enlev[i].statw            / \
+             rxi->crate[j][i] = rxi->mi.enlev[i].statw            / \
                                         rxi->mi.enlev[j].statw            * \
                exp (- sol * hP * ediff / kB / rxi->mc_par.Tkin)           * \
-                                        matrix[i][j];
+                                        rxi->crate[i][j];
           else 
-            rxi->mc_par.uprate[j][i] = 0;
-          printf ("Uprate %d %d -> %e\n", j, i, rxi->mc_par.uprate[j][i]);
+            rxi->crate[j][i] = 0;
+          printf ("Uprate %d %d -> %e\n", j, i, matrix[j][i]);
         }
     }
   for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
-  {
     for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-    {
-      rxi->mc_par.totrate[i] += rxi->mc_par.uprate[i][j];
-      printf ("+= %e \n", rxi->mc_par.uprate[i][j]);
-    }
-    printf ("res %e \n", rxi->mc_par.totrate[i]);
-  }
+      rxi->totrate[i] += rxi->crate[i][j];
+
   return 0;
 }
 
@@ -325,7 +320,5 @@ read_data (struct radexi_data *rxi)
   reading_radtr (rxi);
   reading_colpart (rxi);
   prepare_for_calculation (rxi);
-  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
-    printf ("%e\n", rxi->mc_par.totrate[i]);
   return 0;
 }
