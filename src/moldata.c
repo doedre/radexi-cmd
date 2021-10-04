@@ -121,7 +121,7 @@ extract_col_partner (char * line)
   return result;
 }
 
-static void
+void
 conv_int_to_name (int cp, char *cp_name)
 {
   if (cp == H2)

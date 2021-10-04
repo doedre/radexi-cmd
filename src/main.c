@@ -33,20 +33,25 @@
 
 #include "radexi.h"
 
+/* Physical constants */
+const double sol  = 2.99792458e10;    /* speed of light       [cm s-1]      */
+const double hP   = 6.6260963e-27;    /* Planck's constant    [erg s]       */
+const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
+
+
 int
 main (int argc, char ** argv)
 {
   struct rx_options rx_opts;
-  struct MC_parameters mc_pars;
+  struct radexi_data rxi;
   float sf, ef;
   size_t s;
   int pathindex = set_rx_options (&rx_opts, argc, argv);
 
   if (rx_opts.usage_mode == UM_DIALOGUE)
     {
-      start_dialogue (&sf, &ef, &mc_pars, &s, &rx_opts);
-      printf ("st freq: %f\t end freq: %f\n", sf, ef);
-      printf ("kin temp: %f\n", mc_pars.Tkin); 
+      start_dialogue (&sf, &ef, &rxi, &s, &rx_opts);
+      read_data (&rxi);
     }
   else if (rx_opts.usage_mode == UM_FILE)
     {

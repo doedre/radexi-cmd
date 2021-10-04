@@ -150,7 +150,7 @@ static bool
 isAllowedMolecule (const char * str)
 {
   bool res = false;
-  if (!strcmp (str, "ch3oh_a") || !strcmp (str, "ch3oh_e"))
+  if (!strcmp (str, "hcno-test") || !strcmp (str, "hco"))
     res = true;
   return res;
 }
@@ -158,11 +158,10 @@ isAllowedMolecule (const char * str)
 
 /* Used to fill molecule name in MC_parameters structure. */
 static void
-enter_molecule (struct MC_parameters *mc_pars)
+enter_molecule (struct radexi_data *rxi)
 {
-  size_t size = 10;
   char *line;
-  line = (char *) malloc (size);
+  line = (char *) malloc (RXI_MOLECULE_MAX_SIZE);
   linenoiseSetCompletionCallback (molecules_completion);
   linenoiseHistoryLoad (".molecules");
 
@@ -170,7 +169,7 @@ enter_molecule (struct MC_parameters *mc_pars)
     {
       if (isAllowedMolecule (line))
         {
-          strncpy (mc_pars->molecule, line, 10);
+          strncpy (rxi->mi.name, line, RXI_MOLECULE_MAX_SIZE);
           linenoiseHistoryAdd (line);
           linenoiseHistorySave (".molecules");
           break;
@@ -500,7 +499,7 @@ enter_collision_partners (struct col_partner *cps,
 void
 start_dialogue (float *sfreq, 
                 float *efreq, 
-                struct MC_parameters *mc_pars,
+                struct radexi_data *rxi,
                 size_t *s,
                 const struct rx_options *opts) 
 {
@@ -516,7 +515,7 @@ start_dialogue (float *sfreq,
   printf ("(\x1B[2;37;40m'\x1B[4;37;40mlist\x1B[0;37;40m\x1B[2;37;40m'");
   printf (" to see the variants\x1B[0;37;40m)\x1B[3;37;40m\n");
  
-  enter_molecule (mc_pars);
+  enter_molecule (rxi);
       
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter starting & ending frequencies ");
@@ -528,21 +527,21 @@ start_dialogue (float *sfreq,
   printf ("Enter kinetic temperature ");
   printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
 
-  enter_float_parameter (&mc_pars->Tkin, TKIN_FAIL, opts, ".Tkin", NULL, 
+  enter_float_parameter (&rxi->mc_par.Tkin, TKIN_FAIL, opts, ".Tkin", NULL, 
                                                   hints_temp, isAllowedTemp);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter background temperature ");
   printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
 
-  enter_float_parameter (&mc_pars->Tbg, TBG_FAIL, opts, ".Tbg", NULL, 
+  enter_float_parameter (&rxi->mc_par.Tbg, TBG_FAIL, opts, ".Tbg", NULL, 
                                                   hints_temp, isAllowedTemp);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter column density for the molecule ");
   printf ("\x1B[1;37;40m[cm-2]\x1B[0;37;40m\n");
 
-  enter_float_parameter (&mc_pars->coldens, COLDENS_FAIL, opts, ".coldens",
+  enter_float_parameter (&rxi->mc_par.coldens, COLDENS_FAIL, opts, ".coldens",
                                     NULL, NULL, isAllowedColdens);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
@@ -552,13 +551,13 @@ start_dialogue (float *sfreq,
   else 
     printf ("\x1B[1;37;40m[km s-1]\x1B[0;37;40m\n");
 
-  enter_float_parameter (&mc_pars->line_width, FWHM_FAIL, opts, ".fwhm",
+  enter_float_parameter (&rxi->mc_par.line_width, FWHM_FAIL, opts, ".fwhm",
                                                 NULL, NULL, isAllowedWidth);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter collision partners and their densities ");
   printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
 
-  enter_collision_partners (mc_pars->cps, s, COLLISION_FAIL, opts,
+  enter_collision_partners (rxi->mc_par.cps, s, COLLISION_FAIL, opts,
       ".collisions", NULL, NULL, isAllowedCollisionPartners); 
 }
