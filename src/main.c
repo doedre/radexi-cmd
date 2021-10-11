@@ -44,6 +44,7 @@ main (int argc, char ** argv)
 {
   struct rx_options rx_opts;
   struct radexi_data rxi;
+  struct radexi_results rxi_res;
   float sf, ef;
   size_t s;
   int pathindex = set_rx_options (&rx_opts, argc, argv);
@@ -52,7 +53,8 @@ main (int argc, char ** argv)
     {
       start_dialogue (&sf, &ef, &rxi, &s, &rx_opts);
       read_data (&rxi);
-      calculate_bg_field(&rxi);
+      calculate_bg_field (&rxi);
+      main_calculations (&rxi, &rxi_res);
     }
   else if (rx_opts.usage_mode == UM_FILE)
     {

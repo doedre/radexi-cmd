@@ -136,6 +136,15 @@ enum ColPartner
   NO_MOLECULE
 };
 
+/* Used to define cloud's geometry, as RADEX is doing it's calculations in 
+ * prediction of some uniformity. */
+enum Geometry
+{
+  SPHERE = 1,
+  SLAB,
+  LVG
+};
+
 /* Collision partner's name and it's density in one place. Used in 
  * 'MC_parameters' structure to store collision partners as an array.  */
 struct col_partner
@@ -159,6 +168,7 @@ struct MC_parameters
   float coldens;                            /* molecular column density   */
   float line_width;                         /* line width equal for all lines */
   double total_density;                     /* total partner's density    */
+  enum Geometry geom;                       /* Cloud's geometry           */
   struct col_partner cps[RXI_MAX_COLL_PARTNERS];  /* collision partners   */
 };
 
@@ -214,6 +224,14 @@ struct radexi_data
   struct bg_field bg;
 };
 
+struct radexi_results
+{
+  float rates[RXI_MAX_RADTR][RXI_MAX_RADTR];
+  float Tex[RXI_MAX_RADTR];
+  float tau[RXI_MAX_RADTR];
+  float xpop[RXI_MAX_ENLEV];
+};
+
 /* Checks what needs to be printed if there are some errors during the launch
  * (most commonly they appear because of the user's input). Whether prints a 
  * small message with future advice, or --help field output. */
@@ -241,6 +259,8 @@ int read_data (struct radexi_data *rxi);
 void conv_int_to_name (int cp, char *cp_name);
 
 int calculate_bg_field (struct radexi_data *rxi);
+
+void main_calculations (struct radexi_data *rxi, struct radexi_results *rxi_res);
 
 /* Reads usage_mode and decides what to do with the given molecular file  */
 void operate_molecular_files (char *mol_file, const struct rx_options *rx_opts);
