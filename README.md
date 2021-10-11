@@ -13,6 +13,7 @@ In order to download and install `radexi-cmd` you'll need
 - gcc
 - make
 - curl
+- gsl
 
 Install them with your packet manager.
 
