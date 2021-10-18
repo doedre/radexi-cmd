@@ -32,7 +32,6 @@
 #include "radexi.h"
 
 #include <math.h>
-#include <gsl/gsl_linalg.h>
 
 void
 first_iteration (struct radexi_data *rxi, struct radexi_results *rxi_res)
@@ -41,8 +40,6 @@ first_iteration (struct radexi_data *rxi, struct radexi_results *rxi_res)
     {
       unsigned int u = rxi->mi.radtr[i].ulev - 1;
       unsigned int l = rxi->mi.radtr[i].llev - 1;
-
-      printf ("%d -> %d\n", u, l);
 
       float coef = hP * sol / kB * rxi->mi.radtr[i].xnu / rxi->mc_par.Tbg;
       if (coef >= 160)
@@ -147,37 +144,54 @@ main_calculations (struct radexi_data *rxi, struct radexi_results *rxi_res)
   // Now separates collisionally coupled levels from those that are coupled 
   // by radiative processes, computing an effective cascade matrix for rates of
   // transfer from one low-lyinglevel to another.
-  for (unsigned int i = 0; i < nred; i++)
+/*  for (unsigned int i = 0; i < nred; i++)
     for (unsigned int j = 0; j < nred; j++)
       for (unsigned int k = nred + 1; k < rxi->mi.numof_enlev; k++)
-        local_rates[i][j] += fabs (rxi_res->rates[k][j] * \
-                              rxi_res->rates[i][k] / rxi_res->rates[k][k]); 
-
+        local_rates[j][i] += fabs (rxi_res->rates[k][i] * \
+                              rxi_res->rates[j][k] / rxi_res->rates[k][k]); 
+*/
+  
   // Solving reduced system of equations explicitly for the low-lying levels
-  double lr[rxi->mi.numof_enlev * rxi->mi.numof_enlev];
-  double rhs[rxi->mi.numof_enlev];
-  unsigned int c = 0; 
+  /*double lr[rxi->mi.numof_enlev * rxi->mi.numof_enlev];*/
+  /*double rhs[rxi->mi.numof_enlev];*/
+  gsl_vector *b = gsl_vector_calloc (rxi->mi.numof_enlev);
+  gsl_matrix *A = gsl_matrix_calloc (rxi->mi.numof_enlev, rxi->mi.numof_enlev);
   for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
     {
-      rhs[i] = 1e-30 * rxi->mc_par.total_density;
+      gsl_vector_set (b, i, 1e-20 * rxi->mc_par.total_density);
 
       for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-        lr[c++] = local_rates[i][j];
+        {
+          if ((i - 1) != rxi->mi.numof_enlev)
+            gsl_matrix_set (A, i, j, local_rates[i][j]);
+          else
+            gsl_matrix_set (A, i, j, 1);
+        }
     }
+
+  gsl_vector_fprintf (stdout, b, "%e");
+
+  gsl_linalg_HH_svx (A, b);
+
+  printf ("result=\n");
+  gsl_vector_fprintf (stdout, b, "%e");
+
+  gsl_matrix_free (A);
+  gsl_vector_free (b);
   
-  gsl_matrix_view A = gsl_matrix_view_array (lr, rxi->mi.numof_enlev, rxi->mi.numof_enlev);
-  gsl_vector_view b = gsl_vector_view_array (rhs, rxi->mi.numof_enlev);
-  gsl_vector *x = gsl_vector_alloc (rxi->mi.numof_enlev);
-  int s;
+  /*gsl_matrix_view A = gsl_matrix_view_array (lr, rxi->mi.numof_enlev, rxi->mi.numof_enlev);*/
+  /*gsl_vector_view b = gsl_vector_view_array (rhs, rxi->mi.numof_enlev);*/
+  /*gsl_vector *x = gsl_vector_alloc (rxi->mi.numof_enlev);*/
+  /*int s;*/
 
 
-  gsl_permutation *p = gsl_permutation_alloc (rxi->mi.numof_enlev);
-  gsl_linalg_LU_decomp (&A.matrix, p, &s);
-  gsl_linalg_LU_solve (&A.matrix, p, &b.vector, x);
+  /*gsl_permutation *p = gsl_permutation_alloc (rxi->mi.numof_enlev);*/
+  /*gsl_linalg_LU_decomp (&A.matrix, p, &s);*/
+  /*gsl_linalg_LU_solve (&A.matrix, p, &b.vector, x);*/
 
-  printf("x = \n");
-  gsl_vector_fprintf (stdout, x, "%g");
+  /*printf("x = \n");*/
+  /*gsl_vector_fprintf (stdout, x, "%e");*/
 
-  gsl_permutation_free (p);
-  gsl_vector_free (x);
+  /*gsl_permutation_free (p);*/
+  /*gsl_vector_free (x);*/
 }

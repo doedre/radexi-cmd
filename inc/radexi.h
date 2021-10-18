@@ -37,6 +37,8 @@
 #include <stdio.h>
 #include <stdbool.h>
 
+#include <gsl/gsl_linalg.h>
+
 #define PROGRAM_NAME  "radexi"
 #define RXI_MOLECULE_MAX_SIZE 15  /* Max lenght for the molecule name 
                                      defined by the user                    */
@@ -219,9 +221,9 @@ struct radexi_data
 {
   struct MC_parameters mc_par;
   struct molecule_info mi;
-  float crate[RXI_MAX_ENLEV][RXI_MAX_ENLEV]; /*    collision rates         */
-  float totrate[RXI_MAX_ENLEV];              /* total collision rate       */
   struct bg_field bg;
+  float totrate[RXI_MAX_ENLEV];              /* total collision rate       */
+  float crate[RXI_MAX_ENLEV][RXI_MAX_ENLEV]; /*    collision rates         */
 };
 
 struct radexi_results

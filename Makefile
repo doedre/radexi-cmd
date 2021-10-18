@@ -1,5 +1,5 @@
 bin/radexi : main.o linenoise.o dialogue.o options.o readdata.o moldata.o bgfield.o matrix.o
-	gcc -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas bin/main.o bin/linenoise.o bin/moldata.o bin/dialogue.o bin/readdata.o bin/bgfield.o bin/matrix.o bin/options.o -o bin/radexi
+	gcc -std=c99 -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas bin/main.o bin/linenoise.o bin/readdata.o bin/moldata.o bin/dialogue.o bin/bgfield.o bin/matrix.o bin/options.o -o bin/radexi
 
 main.o : src/main.c inc/radexi.h
 	gcc -Wall -Wextra -pedantic -I./inc -c src/main.c -o bin/main.o

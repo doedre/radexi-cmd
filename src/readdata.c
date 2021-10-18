@@ -280,13 +280,13 @@ reading_colpart (struct radexi_data *rxi)
 static int 
 prepare_for_calculation (struct radexi_data *rxi)
 {
-  for (unsigned int cp = 0; rxi->mc_par.cps[cp].name != 0; cp++)
+    for (unsigned int cp = 0; rxi->mc_par.cps[cp].name != 0; cp++)
     {
       rxi->mc_par.total_density += rxi->mc_par.cps[cp].dens;
       for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
         for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-          rxi->crate[i][j] += rxi->mc_par.cps[cp].dens                        * \
-                          rxi->mc_par.cps[cp].coef[i][j];
+          rxi->crate[i][j] += rxi->mc_par.cps[cp].dens                    * \
+                              rxi->mc_par.cps[cp].coef[i][j];
     }
 
   for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
@@ -306,6 +306,13 @@ prepare_for_calculation (struct radexi_data *rxi)
   for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
     for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
       rxi->totrate[i] += rxi->crate[i][j];
+
+  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
+    {
+      for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
+        printf ("%1.2e  ", rxi->crate[i][j]);
+      printf ("\n");
+    }
 
   return 0;
 }
