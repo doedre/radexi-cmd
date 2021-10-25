@@ -30,7 +30,6 @@
  *
  * ---------------------------------------------------------------------*/
 
-
 #include "radexi.h"
 
 /* Physical constants */
@@ -41,17 +40,18 @@ const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
 int
 main (int argc, char **argv)
 {
-  struct rx_options rx_opts;
-  struct radexi_data rxi;
+  struct rxi_input inp;
+  struct rxi_options rx_opts;
+  struct rxi_data rxi;
   struct radexi_results rxi_res;
   
   float sf, ef;
-  size_t s;
-  int pathindex = set_rx_options (&rx_opts, argc, argv);
+  int pathindex = set_rxi_options (&rx_opts, argc, argv);
 
   if (rx_opts.usage_mode == UM_DIALOGUE)
     {
-      start_dialogue (&sf, &ef, &rxi, &s, &rx_opts);
+      start_dialogue (&sf, &ef, &inp, &rx_opts);
+      read_info_file (&rxi);
       read_data (&rxi);
       calculate_bg_field (&rxi);
       main_calculations (&rxi, &rxi_res);

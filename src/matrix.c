@@ -153,7 +153,6 @@ main_calculations (struct radexi_data *rxi, struct radexi_results *rxi_res)
   
   // Solving reduced system of equations explicitly for the low-lying levels
   /*double lr[rxi->mi.numof_enlev * rxi->mi.numof_enlev];*/
-  /*double rhs[rxi->mi.numof_enlev];*/
   gsl_vector *b = gsl_vector_calloc (rxi->mi.numof_enlev);
   gsl_matrix *A = gsl_matrix_calloc (rxi->mi.numof_enlev, rxi->mi.numof_enlev);
   for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)

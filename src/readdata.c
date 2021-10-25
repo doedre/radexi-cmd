@@ -39,12 +39,12 @@
  * - 0 on success
  * - -1 on .info file opening error
  * - 1 on wrong numbers in parameters  */
-static int 
-reading_info (struct radexi_data *rxi)
+int 
+read_info_file (struct rxi_input *inp)
 {
   char *mi_path;
   mi_path = (char *) malloc (2*RXI_MOLECULE_MAX_SIZE + 12);
-  sprintf (mi_path, "data/%s/%s.info", rxi->mi.name, rxi->mi.name);
+  sprintf (mi_path, "data/%s/%s.info", inp->name, inp->name);
   FILE *mi = fopen (mi_path, "r");
   free (mi_path);
 
@@ -54,7 +54,7 @@ reading_info (struct radexi_data *rxi)
   char *line;
   size_t n = 200;
   line = (char *) malloc (n);
-  enum ColPartner col_partner = NO_MOLECULE;
+  enum ColPart col_partner = NO_MOLECULE;
   while (fgets (line, n, mi))
     {
       char *p_ddots = strrchr (line, ':');
@@ -73,26 +73,26 @@ reading_info (struct radexi_data *rxi)
         {
           for (int i = 0; i < RXI_MAX_COLL_PARTNERS; i++)
             {
-              if (rxi->mc_par.cps[i].name != col_partner)
+              if (rxi->mc.cp[i].name != col_partner)
                 continue;
-              rxi->mc_par.cps[i].numof_coltr = strtof (parameter, NULL);
+              rxi->mc.cp[i].numof_coltr = strtof (parameter, NULL);
             }
         } 
       else if (strstr (line, "Collisional temperatures:"))
         {
           for (int i = 0; i < RXI_MAX_COLL_PARTNERS; i++)
             {
-              if (rxi->mc_par.cps[i].name != col_partner)
+              if (rxi->mc.cp[i].name != col_partner)
                 continue;
               char *end;
               int j = 0;
               for (float f = strtof (parameter, &end); parameter != end;
                                              f = strtof (parameter, &end))
                 {
-                  rxi->mc_par.cps[i].temps[j++] = f;
+                  rxi->mc.cp[i].temps[j++] = f;
                   parameter = end;
                 }
-              rxi->mc_par.cps[i].numof_temps = j;
+              rxi->mc.cp[i].numof_temps = j;
             }
         }
     }
@@ -100,6 +100,12 @@ reading_info (struct radexi_data *rxi)
 
   fclose (mi);
   return 0;
+}
+
+struct rxi_data
+rxi_data_calloc (const struct rxi_data rxi)
+{
+  return rxi;
 }
 
 static int 
@@ -320,7 +326,6 @@ prepare_for_calculation (struct radexi_data *rxi)
 int
 read_data (struct radexi_data *rxi)
 {
-  reading_info (rxi);
   reading_enlev (rxi);
   reading_radtr (rxi);
   reading_colpart (rxi);

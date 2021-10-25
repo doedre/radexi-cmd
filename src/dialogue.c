@@ -54,12 +54,9 @@ enum
 
 /* Those two are used to lower the amount of input functions used by this 
  * program. Need to rethink their usage in future.  */
-typedef bool (allowed_value)(const char *str, float *par, 
-                                          const struct rx_options *rx_opts);
-
-typedef bool (allowed_value_cps)(const char *str, struct col_partner *cps,
-                                 size_t *s, const struct rx_options *rx_opts);
-
+typedef bool (allowed_value)(const char *str, 
+                             double *par, 
+                             const struct rxi_options *rx_opts);
 
 /* This function takes the state argument, which is one from enum above, and 
  * then it either shows an error or exits (tries to do it good). */
@@ -155,10 +152,9 @@ isAllowedMolecule (const char * str)
   return res;
 }
 
-
 /* Used to fill molecule name in MC_parameters structure. */
 static void
-enter_molecule (struct radexi_data *rxi)
+enter_molecule (char *name)
 {
   char *line;
   line = (char *) malloc (RXI_MOLECULE_MAX_SIZE);
@@ -169,14 +165,14 @@ enter_molecule (struct radexi_data *rxi)
     {
       if (isAllowedMolecule (line))
         {
-          strncpy (rxi->mi.name, line, RXI_MOLECULE_MAX_SIZE);
+          strncpy (name, line, RXI_MOLECULE_MAX_SIZE);
           linenoiseHistoryAdd (line);
           linenoiseHistorySave (".molecules");
           break;
         }
       else if (!strcmp (line, "list"))
         {
-          printf (" ch3oh_a and ch3oh_e ");
+          printf (" TODO: add list option ");
         }
       else if (!strcmp (line, "quit"))
         {
@@ -262,13 +258,15 @@ enter_frequencies (float *sf, float *ef)
 
 /* Casts str to float and checks if it's of the correct range. */
 static bool 
-isAllowedTemp (const char *str, float *val, const struct rx_options *rx_opts)
+isAllowedTemp (const char *str, 
+               double *val, 
+               const struct rxi_options *rx_opts)
 {
   /* Supress unused parameter warning */
   (void) rx_opts;
 
   bool res = false;
-  float f = atof (str);
+  double f = strtod (str, NULL);
 
   if ((f > 0.1) && (f < 10000))
     {
@@ -283,18 +281,19 @@ isAllowedTemp (const char *str, float *val, const struct rx_options *rx_opts)
 /* Casts str to float and checks if it's of the correct column density range. 
  * Also works w/ -L flag. */
 static bool
-isAllowedColdens (const char *str, float *val, 
-                                              const struct rx_options *rx_opts)
+isAllowedColdens (const char *str, 
+                  double *val, 
+                  const struct rxi_options *rx_opts)
 {
   bool res = false;
-  float f = atof (str);
+  double f = strtod (str, NULL);
 
   /* Checks for -l option */
   if (rx_opts->dens_log_scale)
     {
       if ((f > 5) && (f < 25))
         {
-          *val = powf (10, f);
+          *val = pow (10, f);
           res = true;
         }
     }
@@ -313,10 +312,12 @@ isAllowedColdens (const char *str, float *val,
 /* Casts str to float and checks if it's of the correct line widths range. 
  * Also works w/ -H flag. */
 static bool
-isAllowedWidth (const char *str, float *val, const struct rx_options *rx_opts)
+isAllowedWidth (const char *str, 
+                double *val, 
+                const struct rxi_options *rx_opts)
 {
   bool res = false;
-  float f = atof (str);
+  double f = strtod (str, NULL);
 
   if (rx_opts->hz_width)
     {
@@ -340,9 +341,9 @@ isAllowedWidth (const char *str, float *val, const struct rx_options *rx_opts)
 
 /* Used for typical float parameter entering. */
 static void
-enter_float_parameter  (float *par, 
+enter_double_parameter (double *par, 
                         int fail_state,
-                        const struct rx_options *rx_opts,
+                        const struct rxi_options *rx_opts,
                         const char *history_file, 
                         linenoiseCompletionCallback *completion,
                         linenoiseHintsCallback *hints,
@@ -376,10 +377,10 @@ enter_float_parameter  (float *par,
 }
 
 /* Converts collision partner's name into a number (or ColPartner enum).  */
-static enum ColPartner
+static enum ColPart
 conv_name_to_int (const char *str)
 {
-  enum ColPartner res = He;
+  enum ColPart res = He;
   if (!strncmp (str, "H2", 2) || !strncmp (str, "h2", 2))
     res = H2;
   else if (!strncmp (str, "PARA_H2", 7) || !strncmp (str, "para_h2", 7))
@@ -402,8 +403,9 @@ conv_name_to_int (const char *str)
 
 /* Parses a line to get collision partner's name and it's volume density. */
 static bool
-isAllowedCollisionPartners (const char *str, struct col_partner *cps, 
-                                  size_t *s, const struct rx_options *rx_opts)
+isAllowedCps (const char *str, 
+              struct rxi_input *inp, 
+              const struct rxi_options *rx_opts)
 {
   bool res = true;
   char *storage;
@@ -424,22 +426,22 @@ isAllowedCollisionPartners (const char *str, struct col_partner *cps,
       for (char *t = strtok (storage2, " "); t; t = strtok (NULL, " "))
         {
           if (numof_t == 0)
-              cps[numof_cps].name = conv_name_to_int (t);
+              inp->cp_names[numof_cps] = conv_name_to_int (t);
           else if (numof_t == 1)
             {
               float d = atof (t);
-              cps[numof_cps].dens = atof (t);
+              inp->cp_densities[numof_cps] = atof (t);
               if (rx_opts->dens_log_scale)
                 {
                   if (d >= 0 && d <= 14)
-                    cps[numof_cps].dens = powf (10, d);
+                    inp->cp_densities[numof_cps] = powf (10, d);
                   else
                     res = false;
                 }
               else
                 {
                   if (d >= 1 && d <= 1e14)
-                    cps[numof_cps].dens = d;
+                    inp->cp_densities[numof_cps] = d;
                   else 
                     res = false;
                 }
@@ -452,35 +454,28 @@ isAllowedCollisionPartners (const char *str, struct col_partner *cps,
       free (storage2);
     }
 
-  *s = numof_cps;
+  inp->numof_colpart = numof_cps;
   free (storage);
   return res;
 }
 
 /* Equal to the enter_float(), but used for collision partner's retrieval.  */
 static void
-enter_collision_partners (struct col_partner *cps, 
-                          size_t *s,
+enter_collision_partners (struct rxi_input *inp,
                           int fail_state,
-                          const struct rx_options *rx_opts,
-                          const char *history_file, 
-                          linenoiseCompletionCallback *completion,
-                          linenoiseHintsCallback *hints,
-                          allowed_value_cps isAllowed)
+                          const struct rxi_options *rx_opts)
 {
   size_t size = 30;
   char *line;
   line = (char *) malloc (size);
-  linenoiseHistoryLoad (history_file);
-  linenoiseSetCompletionCallback (completion);
-  linenoiseSetHintsCallback (hints);
+  linenoiseHistoryLoad (".colpartners");
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
-      if (isAllowed (line, cps, s, rx_opts))
+      if (isAllowedCps (line, inp, rx_opts))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (history_file);
+          linenoiseHistorySave (".colpartners");
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -499,9 +494,8 @@ enter_collision_partners (struct col_partner *cps,
 void
 start_dialogue (float *sfreq, 
                 float *efreq, 
-                struct radexi_data *rxi,
-                size_t *s,
-                const struct rx_options *opts) 
+                struct rxi_input *inp,
+                const struct rxi_options *opts) 
 {
   if (!opts->quite_start)
     {
@@ -515,7 +509,7 @@ start_dialogue (float *sfreq,
   printf ("(\x1B[2;37;40m'\x1B[4;37;40mlist\x1B[0;37;40m\x1B[2;37;40m'");
   printf (" to see the variants\x1B[0;37;40m)\x1B[3;37;40m\n");
  
-  enter_molecule (rxi);
+  enter_molecule (inp->name);
       
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter starting & ending frequencies ");
@@ -527,22 +521,37 @@ start_dialogue (float *sfreq,
   printf ("Enter kinetic temperature ");
   printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
 
-  enter_float_parameter (&rxi->mc_par.Tkin, TKIN_FAIL, opts, ".Tkin", NULL, 
-                                                  hints_temp, isAllowedTemp);
+  enter_double_parameter (&inp->Tkin, 
+                          TKIN_FAIL, 
+                          opts, 
+                          ".Tkin", 
+                          NULL, 
+                          hints_temp, 
+                          isAllowedTemp);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter background temperature ");
   printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
 
-  enter_float_parameter (&rxi->mc_par.Tbg, TBG_FAIL, opts, ".Tbg", NULL, 
-                                                  hints_temp, isAllowedTemp);
+  enter_double_parameter (&inp->Tbg, 
+                          TBG_FAIL, 
+                          opts, 
+                          ".Tbg", 
+                          NULL, 
+                          hints_temp, 
+                          isAllowedTemp);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter column density for the molecule ");
   printf ("\x1B[1;37;40m[cm-2]\x1B[0;37;40m\n");
 
-  enter_float_parameter (&rxi->mc_par.coldens, COLDENS_FAIL, opts, ".coldens",
-                                    NULL, NULL, isAllowedColdens);
+  enter_double_parameter (&inp->coldens, 
+                          COLDENS_FAIL, 
+                          opts, 
+                          ".coldens",
+                          NULL, 
+                          NULL, 
+                          isAllowedColdens);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter FWHM lines width ");
@@ -551,13 +560,19 @@ start_dialogue (float *sfreq,
   else 
     printf ("\x1B[1;37;40m[km s-1]\x1B[0;37;40m\n");
 
-  enter_float_parameter (&rxi->mc_par.line_width, FWHM_FAIL, opts, ".fwhm",
-                                                NULL, NULL, isAllowedWidth);
+  enter_double_parameter (&inp->fwhm, 
+                          FWHM_FAIL, 
+                          opts, 
+                          ".fwhm",
+                          NULL, 
+                          NULL, 
+                          isAllowedWidth);
 
   printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
   printf ("Enter collision partners and their densities ");
   printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
 
-  enter_collision_partners (rxi->mc_par.cps, s, COLLISION_FAIL, opts,
-      ".collisions", NULL, NULL, isAllowedCollisionPartners); 
+  enter_collision_partners (inp, 
+                            COLLISION_FAIL, 
+                            opts);
 }
