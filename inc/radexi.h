@@ -39,7 +39,7 @@
 
 #include <gsl/gsl_matrix.h>
 
-#define PROGRAM_NAME  "radexi"
+#define PROGRAM_NAME          "radexi"
 #define RXI_MOLECULE_MAX_SIZE 15  /* Max lenght for the molecule name 
                                      defined by the user                    */
 #define RXI_MAX_EXCESS_SIZE   10  /* Max characters to read from .csv line  */
@@ -54,6 +54,8 @@
 extern const double sol;              /* speed of light       [cm s-1]      */
 extern const double hP;               /* Planck's constant    [erg s]       */
 extern const double kB;               /* Boltzman's constant  [erg K-1]     */
+
+extern const double fk;               /* hP * sol / kB                      */
 
 /* Defines how molecular cloud's parameters will be collected. */
 enum UsageMode
@@ -147,6 +149,30 @@ enum Geometry
   LVG
 };
 
+/* All needed information about the collision partner. May define several of 
+ * them to cover all possible collision partners for the molecule.  */
+struct colpart
+{
+  enum ColPart  name;                         /* collision partner's name 
+                                                defined as constant integer */
+  double        dens;                         /* collision partner's number
+                                                density [cm-3]              */
+  unsigned int  numof_coltr;                  /* num of collisional 
+                                                transitions                 */
+  unsigned int  numof_temps;                  /* num of collisional 
+                                                temperatures                */
+  unsigned int  *ucollev;                     /* upper collisional level    */
+  unsigned int  *lcollev;                     /* lower collisional level    */
+  float         temps[RXI_MAX_COLL_TEMPS];    /* collisional temperatures [K] */
+
+  gsl_matrix    *K;                           /* collisional rate coefficients
+                                                 (from database) [cm3 s-1].
+                                                 It's dimensions are 
+                                                 'numof_radtr X numof_radtr', 
+                                                 but need to allocate memory
+                                                 first.                     */
+};
+
 struct rxi_input
 {
   char          name[RXI_MOLECULE_MAX_SIZE];
@@ -156,50 +182,24 @@ struct rxi_input
   double        fwhm;
   enum Geometry g;
   unsigned int  numof_colpart;
-  int           cp_names[RXI_MAX_COLL_PARTNERS];
-  double        cp_densities[RXI_MAX_COLL_PARTNERS];
-  unsigned int  cp_numof_ct[RXI_MAX_COLL_PARTNERS];
+  unsigned int  max_numof_colpart;
   double        weight;
   unsigned int  numof_enlev;
   unsigned int  numof_radtr;
-  double        coll_temps[RXI_MAX_COLL_TEMPS];
-};
-
-/* All needed information about the collision partner. May define several of 
- * them to cover all possible collision partners for the molecule.  */
-struct colpart
-{
-  enum ColPart  name;                        /* collision partner's name 
-                                                defined as constant integer */
-  double        dens;                        /* collision partner's number
-                                                density [cm-3]              */
-  unsigned int  numof_coltr;                 /* num of collisional 
-                                                transitions                 */
-  unsigned int  numof_temps;                 /* num of collisional 
-                                                temperatures                */
-  unsigned int  ucollev[RXI_MAX_COLL_TRANS]; /* upper collisional level     */
-  unsigned int  lcollev[RXI_MAX_COLL_TRANS]; /* lower collisional level     */
-  float         temps[RXI_MAX_COLL_TEMPS];   /* collisional temperatures [K]  */
-
-  gsl_matrix    *K;                          /* collisional rate coefficients
-                                                (from database) [cm3 s-1].
-                                                It's dimensions are 
-                                                'numof_radtr X numof_radtr', 
-                                                but need to allocate memory
-                                                first.                      */
+  struct colpart cps[RXI_MAX_COLL_PARTNERS];
 };
 
 /* Molecular cloud parameters used as starting data for calculations.  */
 struct mc_par
 {
-  double        Tkin;                        /* kinetic temperature         */
-  double        Tbg;                         /* background temparature      */
-  double        coldens;                     /* molecular column density    */
-  double        line_width;                  /* line width for all lines    */
-  double        total_density;               /* total partner's density     */
-  enum Geometry geom;                        /* Cloud's geometry            */
-  unsigned int  numof_colpart;               /* num of collision partners   */
-  struct colpart cp[RXI_MAX_COLL_PARTNERS];  /* collision partners          */
+  double        Tkin;                         /* kinetic temperature        */
+  double        Tbg;                          /* background temparature     */
+  double        coldens;                      /* molecular column density   */
+  double        line_width;                   /* line width for all lines   */
+  double        total_density;                /* total partner's density    */
+  enum Geometry geom;                         /* Cloud's geometry           */
+  unsigned int  numof_colpart;                /* num of collision partners  */
+  struct colpart *cp;                         /* collision partners         */
 };
 
 struct bg_field
@@ -211,22 +211,22 @@ struct bg_field
 /* Data from enlev.csv will be stored here  */
 struct enlev
 {
-  double        term;                        /* energy level [cm-1]         */
-  double        statw;                       /* statistical weight          */
-  char          qnums[RXI_MAX_EXCESS_SIZE];  /* quantum numbers in one string
-                                             (writing excess strings here)  */
+  double        term;                         /* energy level [cm-1]        */
+  double        statw;                        /* statistical weight         */
+  char          qnums[RXI_MAX_EXCESS_SIZE];   /* quantum numbers in one string
+                                              (writing excess strings here) */
 };
 
 /* Data from radtr.csv will be stored here  */
 struct radtr
 {
-  unsigned int  ulev;                        /* upper level number         */
-  unsigned int  llev;                        /* lower level number         */
-  double        a_einst;                     /* Einstein's coefficient [s-1]  */
-  float         spfreq;                      /* spectral frequency [GHz]   */
-  double        enup;                        /* energy of upper level [K]  */
-  double        xnu;                         /* line frequency in [cm-1]   */
-  char          tail[RXI_MAX_EXCESS_SIZE];   /* excess info                */
+  unsigned int  ulev;                         /* upper level number         */
+  unsigned int  llev;                         /* lower level number         */
+  double        a_einst;                      /* Einstein's coefficient [s-1]  */
+  float         spfreq;                       /* spectral frequency [GHz]   */
+  double        enup;                         /* energy of upper level [K]  */
+  double        xnu;                          /* line frequency in [cm-1]   */
+  char          tail[RXI_MAX_EXCESS_SIZE];    /* excess info                */
 };
 
 /* Base information about the molecule. Used for data control: whether 
@@ -237,9 +237,8 @@ struct mol_info
   double        weight;                       /* molecular weight [a.m.u.]  */
   unsigned int  numof_enlev;                  /* num of energy levels       */
   unsigned int  numof_radtr;                  /* num of radiative transitions */ 
-  unsigned int  numof_colpart;                /* num of collision partners  */
-  struct enlev  el[RXI_MAX_ENLEV];            /* energy levels info         */
-  struct radtr  rt[RXI_MAX_RADTR];            /* radiative transitions info */
+  struct enlev  *el;                          /* energy levels info         */
+  struct radtr  *rt;                           /* radiative transitions info */
 
   gsl_matrix    *C;                           /* collision rates per second
                                                  for all collision partners 
@@ -268,9 +267,12 @@ struct rxi_data
   struct bg_field bg;       /* Structure for background field options.      */
 };
 
-/* Shorter paths to frequently used variables.  */
-# define n_el   mi.numof_enlev
-# define n_rt   mi.numof_radtr
+/* Shorter/readable paths to frequently used variables.  */
+# define n_el         mi.numof_enlev
+# define n_rt         mi.numof_radtr
+# define energy_level mi.el
+# define rad_transfer mi.rt
+# define coll_partner mc.cp
 
 /* Results of the calculations will be stored here. Trying to avoid carrying
  * too much unnecessary information in here.                                */
@@ -278,7 +280,8 @@ struct radexi_results
 {
 };
 
-struct rxi_data rxi_data_calloc (const struct rxi_data pre_filled);
+struct rxi_data *rxi_data_calloc (const struct rxi_input *inp);
+void rxi_data_free (struct rxi_data *rxi);
 
 /* Checks what needs to be printed if there are some errors during the launch
  * (most commonly they appear because of the user's input). Whether prints a 

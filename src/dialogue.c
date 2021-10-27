@@ -49,6 +49,7 @@ enum
   COLDENS_FAIL,
   FWHM_FAIL,
   COLLISION_FAIL,
+  GEOMETRY_FAIL,
   EXIT_REQUEST,
 };
 
@@ -98,6 +99,11 @@ dialogue_usage (int state)
       printf ("\x1B[0;37;40m\x1B[1;31;40m  ## \x1B[0;37;40m");
       printf ("Wrong input. Collision\x1B[3;37;40m\n");
     }
+  else if (state == COLLISION_FAIL)
+    {
+      printf ("\x1B[0;37;40m\x1B[1;31;40m  ## \x1B[0;37;40m");
+      printf ("Wrong input. Geometry\x1B[3;37;40m\n");
+    }
   else if (state == EXIT_REQUEST)
     {
       printf ("\x1B[0;37;40m");
@@ -117,6 +123,21 @@ molecules_completion (const char *buf, linenoiseCompletions *lc)
   else if (buf[0] == 'l')
     {
       linenoiseAddCompletion (lc, "list");
+    }
+}
+
+/* Add all names and exceptions if no molecule was added  */
+static void
+geometry_completion (const char *buf, linenoiseCompletions *lc)
+{
+  if (buf[0] == 'l')
+    {
+      linenoiseAddCompletion (lc, "lvg");
+    }
+  else if (buf[0] == 's')
+    {
+      linenoiseAddCompletion (lc, "sphere");
+      linenoiseAddCompletion (lc, "slab");
     }
 }
 
@@ -426,22 +447,21 @@ isAllowedCps (const char *str,
       for (char *t = strtok (storage2, " "); t; t = strtok (NULL, " "))
         {
           if (numof_t == 0)
-              inp->cp_names[numof_cps] = conv_name_to_int (t);
+              inp->cps[numof_cps].name = conv_name_to_int (t);
           else if (numof_t == 1)
             {
               float d = atof (t);
-              inp->cp_densities[numof_cps] = atof (t);
               if (rx_opts->dens_log_scale)
                 {
                   if (d >= 0 && d <= 14)
-                    inp->cp_densities[numof_cps] = powf (10, d);
+                    inp->cps[numof_cps].dens = powf (10, d);
                   else
                     res = false;
                 }
               else
                 {
                   if (d >= 1 && d <= 1e14)
-                    inp->cp_densities[numof_cps] = d;
+                    inp->cps[numof_cps].dens = d;
                   else 
                     res = false;
                 }
@@ -473,6 +493,58 @@ enter_collision_partners (struct rxi_input *inp,
   while ((line = linenoise ("  >> ")) != NULL)
     {
       if (isAllowedCps (line, inp, rx_opts))
+        {
+          linenoiseHistoryAdd (line);
+          linenoiseHistorySave (".colpartners");
+          break;
+        }
+      else if (!strcmp (line, "quit"))
+        {
+          dialogue_usage (EXIT_REQUEST);
+        }
+      else 
+        {
+          dialogue_usage (fail_state);
+        } 
+      free (line);
+    }
+}
+
+bool isAllowedGeometry (const char *line, struct rxi_input *inp)
+{
+  bool result = false;
+  if (!strncmp (line, "lvg", 3))
+    {
+      inp->g = LVG;
+      result = true;
+    }
+  else if (!strncmp (line, "slab", 4))
+    {
+      inp->g = SLAB;
+      result = true;
+    }
+  else if (!strncmp (line, "sphere", 6))
+    {
+      inp->g = SPHERE;
+      result = true;
+    }
+  
+  return result;
+}
+
+void 
+enter_geometry (struct rxi_input *inp, 
+                int fail_state)
+{
+  size_t size = 10;
+  char *line;
+  line = (char *) malloc (size);
+  linenoiseSetCompletionCallback (geometry_completion);
+  linenoiseHistoryLoad (".geometry");
+
+  while ((line = linenoise ("  >> ")) != NULL)
+    {
+      if (isAllowedGeometry (line, inp))
         {
           linenoiseHistoryAdd (line);
           linenoiseHistorySave (".colpartners");
@@ -575,4 +647,11 @@ start_dialogue (float *sfreq,
   enter_collision_partners (inp, 
                             COLLISION_FAIL, 
                             opts);
+
+  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
+  printf ("Enter type of the cloud's geometry ");
+  printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
+
+  enter_geometry (inp, GEOMETRY_FAIL);
+
 }

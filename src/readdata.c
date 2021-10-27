@@ -60,39 +60,40 @@ read_info_file (struct rxi_input *inp)
       char *p_ddots = strrchr (line, ':');
       char *parameter = p_ddots ? p_ddots + 1 : line;
       if (strstr (line, "Molecular weight:"))
-        rxi->mi.weight = strtof (parameter, NULL);
+        inp->weight = strtof (parameter, NULL);
       else if (strstr (line, "Number of energy levels:"))
-        rxi->mi.numof_enlev = strtof (parameter, NULL);
+        inp->numof_enlev = strtof (parameter, NULL);
       else if (strstr (line, "Number of radiative transitions:"))
-        rxi->mi.numof_radtr = strtof (parameter, NULL);
+        inp->numof_radtr = strtof (parameter, NULL);
       else if (strstr (line, "Number of collision partners:"))
-        rxi->mi.numof_colpart = strtof (parameter, NULL);
+        inp->max_numof_colpart = strtof (parameter, NULL);
       else if (strstr (line, "Collision partner:"))
         col_partner = strtol (parameter, NULL, 10);
       else if (strstr (line, "Number of collisional transitions:"))
         {
           for (int i = 0; i < RXI_MAX_COLL_PARTNERS; i++)
             {
-              if (rxi->mc.cp[i].name != col_partner)
+              if (inp->cps[i].name != col_partner)
                 continue;
-              rxi->mc.cp[i].numof_coltr = strtof (parameter, NULL);
+              inp->cps[i].numof_coltr = strtof (parameter, NULL);
             }
         } 
       else if (strstr (line, "Collisional temperatures:"))
         {
           for (int i = 0; i < RXI_MAX_COLL_PARTNERS; i++)
             {
-              if (rxi->mc.cp[i].name != col_partner)
+              if (inp->cps[i].name != col_partner)
                 continue;
               char *end;
               int j = 0;
-              for (float f = strtof (parameter, &end); parameter != end;
-                                             f = strtof (parameter, &end))
+              for (float f = strtof (parameter, &end); 
+                   parameter != end;
+                   f = strtof (parameter, &end))
                 {
-                  rxi->mc.cp[i].temps[j++] = f;
+                  inp->cps[i].temps[j++] = f;
                   parameter = end;
                 }
-              rxi->mc.cp[i].numof_temps = j;
+              inp->cps[i].numof_temps = j;
             }
         }
     }
@@ -102,14 +103,73 @@ read_info_file (struct rxi_input *inp)
   return 0;
 }
 
-struct rxi_data
-rxi_data_calloc (const struct rxi_data rxi)
+struct rxi_data*
+rxi_data_calloc (const struct rxi_input *inp)
 {
-  return rxi;
+  struct rxi_data *result;
+  result = malloc (sizeof (struct rxi_data));
+
+  /* Write all static info  */
+  strncpy (result->mi.name, inp->name, RXI_MOLECULE_MAX_SIZE);
+  result->mc.Tkin       = inp->Tkin;
+  result->mc.Tbg        = inp->Tbg;
+  result->mc.coldens    = inp->coldens;
+  result->mc.geom       = inp->g;
+  result->mc.line_width = inp->fwhm;
+  result->mc.numof_colpart = inp->numof_colpart;
+  result->mi.numof_enlev    = inp->numof_enlev;
+  result->mi.numof_radtr    = inp->numof_radtr;
+  result->mi.weight         = inp->weight;
+
+  /* Allocate memory for collision partners first */
+  result->mc.cp = malloc (inp->numof_colpart * sizeof (struct colpart));
+  for (unsigned int i = 0; i < inp->numof_colpart; i++)
+    {
+      result->mc.cp[i].ucollev = malloc (inp->cps[i].numof_coltr *  \
+                                         sizeof (unsigned int));
+      result->mc.cp[i].lcollev = malloc (inp->cps[i].numof_coltr *  \
+                                         sizeof (unsigned int));
+      result->mc.cp[i].K = gsl_matrix_calloc (inp->numof_enlev, 
+                                              inp->numof_enlev);
+      
+      result->mc.cp[i].name = inp->cps[i].name;
+      result->mc.cp[i].dens = inp->cps[i].dens;
+      result->mc.cp[i].numof_coltr = inp->cps[i].numof_coltr;
+      result->mc.cp[i].numof_temps = inp->cps[i].numof_temps;
+      for (unsigned int t = 0; t < inp->cps[i].numof_temps; t++)
+        result->mc.cp[i].temps[t] = inp->cps[i].temps[t];
+    }
+
+  /* Then for molecular information in mol_info struct  */
+  result->mi.el = malloc (inp->numof_enlev * sizeof (struct enlev));
+  result->mi.rt = malloc (inp->numof_radtr * sizeof (struct radtr));
+  result->mi.C = gsl_matrix_calloc (inp->numof_enlev, inp->numof_enlev);
+  result->mi.Ctot = gsl_vector_calloc (inp->numof_enlev);
+
+  /* TODO: add background field */
+
+  return result;
+}
+
+void
+rxi_data_free (struct rxi_data *rxi)
+{
+  gsl_vector_free (rxi->mi.Ctot);
+  gsl_matrix_free (rxi->mi.C);
+  free (rxi->mi.rt);
+  free (rxi->mi.el);
+  for (unsigned int i = 0; i < rxi->mc.numof_colpart; i++)
+    {
+      free (rxi->mc.cp[i].ucollev);
+      free (rxi->mc.cp[i].lcollev);
+      gsl_matrix_free (rxi->mc.cp[i].K);
+    }
+  free (rxi->mc.cp);
+  free (rxi);
 }
 
 static int 
-reading_enlev (struct radexi_data *rxi)
+reading_enlev (struct rxi_data *rxi)
 {
   char *el_path;
   el_path = (char *) malloc (RXI_MOLECULE_MAX_SIZE + 16);
@@ -123,7 +183,7 @@ reading_enlev (struct radexi_data *rxi)
   char *line;
   size_t n = 250;
   line = (char *) malloc (n);
-  unsigned int el = 0;
+  unsigned int i = 0;
   while (fgets (line, n, enlev_file))
     {
       int t = 0;
@@ -131,29 +191,30 @@ reading_enlev (struct radexi_data *rxi)
         {
           if (t == 1)
             {
-              rxi->mi.enlev[el].term = strtod (token, NULL);
+              rxi->energy_level[i].term = strtod (token, NULL);
             }
           else if (t == 2)
             {
-              rxi->mi.enlev[el].statw = strtof (token, NULL);
+              rxi->energy_level[i].statw = strtof (token, NULL);
             }
           else if (t > 2)
             {
-              strcat (rxi->mi.enlev[el].qnums, token);
+              strcat (rxi->energy_level[i].qnums, token);
             }
           t++;
         }
-      el++;
+      i++;
     }
   fclose (enlev_file);
-  if (el != rxi->mi.numof_enlev)
+  /* Compare with database's data on number of energy levels  */
+  if (i != rxi->n_el)
     return -1;
 
   return 0;
 }
 
 static int 
-reading_radtr (struct radexi_data *rxi)
+reading_radtr (struct rxi_data *rxi)
 {
   char *rt_path;
   rt_path = (char *) malloc (RXI_MOLECULE_MAX_SIZE + 16);
@@ -167,59 +228,65 @@ reading_radtr (struct radexi_data *rxi)
   char *line;
   size_t n = 250;
   line = (char *) malloc (n);
-  unsigned int rt = 0;
+  unsigned int rtnum = 0;
   while (fgets (line, n, radtr_file))
     {
       int t = 0;
+      unsigned int u = 0;
+      unsigned int l = 0;
       for (char *token = strtok (line, ","); token; token = strtok (NULL, ","))
         {
           /* May deprecate ulev & llev later, if they will have no other need */
           if (t == 1)
             {
-              rxi->mi.radtr[rt].ulev = atoi (token);
+              u = atoi (token);
+              rxi->rad_transfer[rtnum].ulev = u;
             }
           else if (t == 2)
             {
-              rxi->mi.radtr[rt].llev = atoi (token);
+              l = atoi (token);
+              rxi->rad_transfer[rtnum].llev = l;
             }
           else if (t == 3)
             {
-              rxi->mi.radtr[rt].a_einst = strtod (token, NULL);
+              rxi->rad_transfer[rtnum].a_einst = strtod (token, NULL);
             }
           else if (t == 4)
             {
-              rxi->mi.radtr[rt].spfreq = strtof (token, NULL);
+              rxi->rad_transfer[rtnum].spfreq = strtof (token, NULL);
             }
           else if (t == 5)
             {
-              rxi->mi.radtr[rt].enup = strtof (token, NULL);
+              rxi->rad_transfer[rtnum].enup = strtof (token, NULL);
             }
           else if (t > 5)
             {
-              strcat (rxi->mi.radtr[rt].tail, token);
+              strcat (rxi->rad_transfer[rtnum].tail, token);
             }
           t++;
         }
-      rxi->mi.radtr[rt].xnu = rxi->mi.enlev[rxi->mi.radtr[rt].ulev-1].term - 
-                              rxi->mi.enlev[rxi->mi.radtr[rt].llev-1].term;
-      rt++;
+      /* Need to extract 1 because arrays in C are starting from 0  */
+      rxi->rad_transfer[rtnum].xnu = rxi->energy_level[u-1].term - \
+                                     rxi->energy_level[l-1].term;
+      rtnum++;
     }
   fclose (radtr_file);
-  if (rt != rxi->mi.numof_radtr)
+  /* Check final number of radiative transitions with the database's one  */
+  if (rtnum != rxi->n_rt)
     return -1;
 
   return 0;
 }
 
 static int 
-reading_colpart (struct radexi_data *rxi)
+reading_colpart (struct rxi_data *rxi)
 {
-  for (unsigned int icp = 0; icp < rxi->mi.numof_colpart; icp++) 
+  for (unsigned int icp = 0; icp < rxi->mc.numof_colpart; icp++) 
     {
       char *cp_path = (char *) malloc (RXI_MOLECULE_MAX_SIZE + 20);
       char *cp_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE);
 
-      conv_int_to_name (rxi->mc_par.cps[icp].name, cp_name);
+      conv_int_to_name (rxi->coll_partner[icp].name, cp_name);
       sprintf (cp_path, "data/%s/%s.csv", rxi->mi.name, cp_name);
       FILE *cp_file = fopen (cp_path, "r");
       free (cp_path);
@@ -234,97 +301,113 @@ reading_colpart (struct radexi_data *rxi)
       unsigned int icoef = 0;
       while (fgets (line, n, cp_file))
         {
+          /* Need to make linear approximation for collision rates */
           int t = 0;
-          float lcoef, ucoef = 0;
-          float ltemp, utemp = 0;
-          unsigned int lcollev, ucollev = 0;
+          double lcoef, ucoef = 0;
+          double ltemp, utemp = 0;
+          unsigned int l, u = 0;
           for ( char *token = strtok (line, ","); 
                 token;
                 token = strtok (NULL, ","))
             {
               if (t == 1)
                 {
-                  ucollev = atoi (token);
+                  u = atoi (token);
                 }
               else if (t == 2)
                 {
-                  lcollev = atoi (token);
+                  l = atoi (token);
                 }
               else if (t > 2)
                 {
-                  if (rxi->mc_par.cps[icp].temps[t-3] <= rxi->mc_par.Tkin)
+                  if (rxi->coll_partner[icp].temps[t-3] <= rxi->mc.Tkin)
                     {
-                      lcoef = strtof (token, NULL);
-                      ltemp = rxi->mc_par.cps[icp].temps[t-3];
+                      lcoef = strtod (token, NULL);
+                      ltemp = rxi->coll_partner[icp].temps[t-3];
                     }
                   else 
                     {
-                      ucoef = strtof (token, NULL);
-                      utemp = rxi->mc_par.cps[icp].temps[t-3];
+                      ucoef = strtod (token, NULL);
+                      utemp = rxi->coll_partner[icp].temps[t-3];
                       break;
                     }
                 }
               t++;
             }
+          /* Setting collision rates matrice's elements  */
           if (ltemp > utemp)
-            rxi->mc_par.cps[icp].coef[ucollev-1][lcollev-1] = lcoef;
+            gsl_matrix_set (rxi->coll_partner[icp].K, u, l, lcoef);
           else if (t == 3)
-            rxi->mc_par.cps[icp].coef[ucollev-1][lcollev-1] = ucoef;
+            gsl_matrix_set (rxi->coll_partner[icp].K, u, l, ucoef);
           else 
-            rxi->mc_par.cps[icp].coef[ucollev-1][lcollev-1] = lcoef       + \
-                                        (ucoef - lcoef) / (utemp - ltemp) * \
-                                        (rxi->mc_par.Tkin - ltemp);
+            {
+              double coef = lcoef + (ucoef - lcoef) / (utemp - ltemp) * \
+                                    (rxi->mc.Tkin - ltemp);
+              gsl_matrix_set (rxi->coll_partner[icp].K, u, l, coef);
+            }
           icoef++;
         }
       fclose (cp_file);
-      if (icoef != rxi->mc_par.cps[icp].numof_coltr)
+      /* Compare if results align with the database one's */
+      if (icoef != rxi->coll_partner[icp].numof_coltr)
         return -1;
     }
   return 0;
 }
 
 static int 
-prepare_for_calculation (struct radexi_data *rxi)
+prepare_for_calculation (struct rxi_data *rxi)
 {
-    for (unsigned int cp = 0; rxi->mc_par.cps[cp].name != 0; cp++)
+    for (unsigned int cp = 0; rxi->coll_partner[cp].name != 0; cp++)
     {
-      rxi->mc_par.total_density += rxi->mc_par.cps[cp].dens;
-      for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
-        for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-          rxi->crate[i][j] += rxi->mc_par.cps[cp].dens                    * \
-                              rxi->mc_par.cps[cp].coef[i][j];
+      rxi->mc.total_density += rxi->coll_partner[cp].dens;
+/*
+      for (unsigned int i = 1; i <= rxi->n_el; i++)
+        for (unsigned int j = 1; j <= rxi->n_el; j++)
+          {
+            double crate = rxi->coll_partner[cp].dens * \
+                           gsl_matrix_get (rxi->coll_partner[cp].K, i, j);
+
+            gsl_matrix_set (rxi->mi.C, i, j, crate);
+          }
+          */
+      gsl_matrix_scale (rxi->coll_partner[cp].K, rxi->coll_partner[cp].dens);
+      gsl_matrix_add (rxi->mi.C, rxi->coll_partner[cp].K);
     }
 
-  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
+  for (unsigned int i = 1; i <= rxi->n_el; i++)
     {
-      for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
+      for (unsigned int j = 1; j <= rxi->n_el; j++)
         {
-          double ediff = rxi->mi.enlev[i].term - rxi->mi.enlev[j].term;
-          if ((ediff > 0) && (hP*sol/kB * ediff / rxi->mc_par.Tkin < 160))
-             rxi->crate[j][i] = rxi->mi.enlev[i].statw            / \
-                                        rxi->mi.enlev[j].statw            * \
-               exp (- sol * hP * ediff / kB / rxi->mc_par.Tkin)           * \
-                                        rxi->crate[i][j];
+          double ediff = rxi->energy_level[i-1].term -  \
+                         rxi->energy_level[j-1].term;
+
+          if ((ediff > 0) && (fk * ediff / rxi->mc.Tkin < 160))
+            {
+              double crate = rxi->energy_level[i-1].statw /                 \
+                             rxi->energy_level[j-1].statw *                 \
+                             exp (- fk * ediff / rxi->mc.Tkin) *            \
+                                        gsl_matrix_get (rxi->mi.C, i, j);
+              gsl_matrix_set (rxi->mi.C, i, j, crate);
+            }
           else 
-            rxi->crate[j][i] = 0;
+            gsl_matrix_set (rxi->mi.C, i, j, 0);
         }
     }
-  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
-    for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-      rxi->totrate[i] += rxi->crate[i][j];
-
-  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
+  
+  for (unsigned int i = 1; i <= rxi->n_el; i++)
     {
-      for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-        printf ("%1.2e  ", rxi->crate[i][j]);
-      printf ("\n");
+      gsl_vector *conv = gsl_vector_alloc (rxi->n_el);
+      gsl_matrix_get_col (conv, rxi->mi.C, i);
+      gsl_vector_add (rxi->mi.Ctot, conv);
+      gsl_vector_free (conv);
     }
 
   return 0;
 }
 
 int
-read_data (struct radexi_data *rxi)
+read_data (struct rxi_data *rxi)
 {
   reading_enlev (rxi);
   reading_radtr (rxi);
