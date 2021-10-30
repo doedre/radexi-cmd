@@ -204,7 +204,7 @@ struct mc_par
 
 struct bg_field
 {
-  double        intens[RXI_MAX_RADTR];        /* background intensity 
+  double        *intens;                      /* background intensity 
                                                  [erg s-1 cm-2 Hz-1 sr-1]   */
 };
 
@@ -253,6 +253,16 @@ struct mol_info
                                                 numof_enlev dimensions.     */
 };
 
+struct results 
+{
+  gsl_matrix    *rates;                       /* rates from statistical 
+                                                 equilibrium                */
+  double        *Tex;                         /* Excitation temperature [K] */
+  double        *tau;                         /* Optical depth for every line
+                                                 [cm-1]                     */
+  double        *pop;                         /* level populations          */
+};
+
 /* Main structure which defines the input information for future calculations.
  * Be cautious with gsl_matrix and gsl_vector elements, as they need to be 
  * allocated before usage.                                                  */
@@ -265,6 +275,7 @@ struct rxi_data
   struct mol_info mi;       /* Any information in here is written from database
                                files. Pre-calculation is also done in here  */
   struct bg_field bg;       /* Structure for background field options.      */
+  struct results  res;      /* Calculation and it's results stored here     */
 };
 
 /* Shorter/readable paths to frequently used variables.  */
@@ -273,12 +284,6 @@ struct rxi_data
 # define energy_level mi.el
 # define rad_transfer mi.rt
 # define coll_partner mc.cp
-
-/* Results of the calculations will be stored here. Trying to avoid carrying
- * too much unnecessary information in here.                                */
-struct radexi_results
-{
-};
 
 struct rxi_data *rxi_data_calloc (const struct rxi_input *inp);
 void rxi_data_free (struct rxi_data *rxi);
@@ -316,7 +321,7 @@ void conv_int_to_name (int cp, char *cp_name);
 
 int calculate_bg_field (struct rxi_data *rxi);
 
-void main_calculations (struct rxi_data *rxi, struct radexi_results *rxi_res);
+void main_calculations (struct rxi_data *rxi);
 
 /* Reads usage_mode and decides what to do with the given molecular file  */
 void operate_molecular_files (char *mol_file, const struct rxi_options *rx_opts);

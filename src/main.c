@@ -57,9 +57,11 @@ main (int argc, char **argv)
       struct rxi_data *rxi = rxi_data_calloc (&inp);
       printf ("reading data...\n");
       read_data (rxi);
-      /*calculate_bg_field (rxi);*/
-      /*main_calculations (rxi, &rxi_res);*/
-      printf ("free rxi_data");
+      printf ("calculating background field...\n");
+      calculate_bg_field (rxi);
+      printf ("making main calculations...\n");
+      main_calculations (rxi);
+      printf ("free rxi_data\n");
       rxi_data_free (rxi);
     }
   else if (rx_opts.usage_mode == UM_FILE)

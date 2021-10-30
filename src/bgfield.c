@@ -34,11 +34,11 @@
 #include <math.h>
 
 int
-calculate_bg_field (struct radexi_data *rxi)
+calculate_bg_field (struct rxi_data *rxi)
 {
-  for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
-      rxi->bg.intens[i] = 2 * hP * sol * pow (rxi->mi.radtr[i].xnu, 3)    / \
-            (exp (hP * sol / kB * rxi->mi.radtr[i].xnu / rxi->mc_par.Tbg) - 1);
+  for (unsigned int i = 0; i < rxi->n_rt; i++)
+    rxi->bg.intens[i] = 2 * hP * sol * pow (rxi->rad_transfer[i].xnu, 3)  / \
+                      (exp (fk * rxi->rad_transfer[i].xnu / rxi->mc.Tbg) - 1);
 
   return 0;
 }
