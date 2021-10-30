@@ -82,10 +82,10 @@ write_csv  (FILE *molfile, const char *mol_name, const char *outfile_suf)
 }
 
 /* Used to extract collision partner's name from the string without the user */
-static enum ColPartner
+static enum ColPart
 extract_col_partner (char * line)
 {
-  enum ColPartner result = H2;
+  enum ColPart result = H2;
   /* Possible names */
   unsigned long numof_variants = 12;
   char *variants[] = { 
@@ -160,7 +160,7 @@ define_collision_partner (FILE *molfile, FILE *mol_info_file)
   if (!strncmp (line, "!", 1))
     return 0;
 
-  enum ColPartner cp = extract_col_partner (line);
+  enum ColPart cp = extract_col_partner (line);
   if (cp == NO_MOLECULE)
     return -1;
 
@@ -181,7 +181,7 @@ define_collision_partner (FILE *molfile, FILE *mol_info_file)
 
 /* This function controls adding new molecules to the database. */
 static void
-add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
+add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
 {
   FILE *molfile = fopen (mol_file_name, "r");
   if (!molfile)
@@ -311,7 +311,7 @@ add_molecular_file (char *mol_file_name, const struct rx_options *rx_opts)
 }
 
 void 
-operate_molecular_files (char *mol_file_name, const struct rx_options *rx_opts)
+operate_molecular_files (char *mol_file_name, const struct rxi_options *rx_opts)
 {
   if (rx_opts->usage_mode == UM_MOLECULAR_FILE_ADD)
     {

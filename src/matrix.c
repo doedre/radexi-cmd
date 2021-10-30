@@ -32,27 +32,43 @@
 #include "radexi.h"
 
 #include <math.h>
+#include <gsl/gsl_linalg.h>
 
 void
-first_iteration (struct radexi_data *rxi, struct radexi_results *rxi_res)
+first_iteration (struct rxi_data *rxi)
 {
   for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
     {
-      unsigned int u = rxi->mi.radtr[i].ulev - 1;
-      unsigned int l = rxi->mi.radtr[i].llev - 1;
+      unsigned int u = rxi->rad_transfer[i].ulev;
+      unsigned int l = rxi->rad_transfer[i].llev;
 
-      float coef = hP * sol / kB * rxi->mi.radtr[i].xnu / rxi->mc_par.Tbg;
+      float coef = hP * sol / kB * rxi->rad_transfer[i].xnu / rxi->mc.Tbg;
       if (coef >= 160)
         coef = 0;
       else 
         coef = 1 / (exp (coef) - 1);
 
-      rxi_res->rates[u][u] += rxi->mi.radtr[i].a_einst * (1 + coef);
-      rxi_res->rates[l][l] += rxi->mi.radtr[i].a_einst * \
-                        rxi->mi.enlev[u].statw * coef / rxi->mi.enlev[l].statw;
-      rxi_res->rates[u][l] -= rxi->mi.radtr[i].a_einst * \
-                        rxi->mi.enlev[u].statw * coef / rxi->mi.enlev[l].statw;
-      rxi_res->rates[l][u] -= rxi->mi.radtr[i].a_einst * (1 + coef);
+      printf ("----preparing [%d][%d]th element\n", u, l);
+      double uu = gsl_matrix_get (rxi->res.rates, u, u) +     \
+                  rxi->rad_transfer[i].a_einst * (1 + coef);
+
+      double ll = gsl_matrix_get (rxi->res.rates, l, l) +     \
+                  rxi->rad_transfer[i].a_einst *              \
+                  rxi->energy_level[u].statw * coef /       \
+                  rxi->energy_level[l].statw;
+
+      double ul = gsl_matrix_get (rxi->res.rates, u, l) -     \
+                  rxi->rad_transfer[i].a_einst *              \
+                  rxi->energy_level[u].statw * coef /       \
+                  rxi->energy_level[l].statw;
+
+      double lu = gsl_matrix_get (rxi->res.rates, l, u) -     \
+                  rxi->rad_transfer[i].a_einst * (1 + coef);
+
+      gsl_matrix_set (rxi->res.rates, u, u, uu);
+      gsl_matrix_set (rxi->res.rates, l, l, ll);
+      gsl_matrix_set (rxi->res.rates, u, l, ul);
+      gsl_matrix_set (rxi->res.rates, l, u, lu);
     }
 }
 
@@ -78,57 +94,83 @@ esc_prob (const float tau, enum Geometry g)
 }
 
 void
-subsequent_iterations (struct radexi_data *rxi, struct radexi_results *rxi_res)
+subsequent_iterations (struct rxi_data *rxi)
 {
   for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
     {
-      unsigned int u = rxi->mi.radtr[i].ulev - 1;
-      unsigned int l = rxi->mi.radtr[i].llev - 1;
+      unsigned int u = rxi->rad_transfer[i].ulev - 1;
+      unsigned int l = rxi->rad_transfer[i].llev - 1;
 
-      float Snu = hP * sol / kB * rxi->mi.radtr[i].xnu / rxi_res->Tex[i];
+      /* Calculating source function  */
+      float Snu = hP * sol / kB * rxi->rad_transfer[i].xnu / rxi->res.Tex[i];
       if (Snu >= 160)
         Snu = 0;
       else 
-        Snu = 2 * hP * sol * pow (rxi->mi.radtr[i].xnu, 3) / \
-            (exp (hP * sol / kB * rxi->mi.radtr[i].xnu / rxi_res->Tex[i]) - 1);
+        Snu = 2 * hP * sol * pow (rxi->rad_transfer[i].xnu, 3) /  \
+              (exp (hP * sol / kB * rxi->rad_transfer[i].xnu /    \
+              rxi->res.Tex[i]) - 1);
 
-      rxi_res->tau[i] = rxi->mc_par.coldens / rxi->mc_par.line_width * \
-                                (rxi_res->xpop[l] * rxi->mi.enlev[u].statw / \
-                                rxi->mi.enlev[l].statw - rxi_res->xpop[u]) / \
-                        (1.0645 * 8 * M_PI * pow (rxi->mi.radtr[i].xnu, 3) / \
-                         rxi->mi.radtr[i].a_einst);
+      rxi->res.tau[i] = rxi->mc.coldens / rxi->mc.line_width *                \
+                      (rxi->res.pop[l] * rxi->energy_level[u].statw /         \
+                      rxi->energy_level[l].statw - rxi->res.pop[u]) /         \
+                      (1.0645 * 8 * M_PI * pow (rxi->rad_transfer[i].xnu, 3)/ \
+                      rxi->rad_transfer[i].a_einst);
 
-      float beta = esc_prob (rxi_res->tau[i], SPHERE);
-      float coef = rxi->bg.intens[i] * beta / \
-                   (2 * hP * sol) / pow (rxi->mi.radtr[i].xnu, 3);
- 
-      rxi_res->rates[u][u] += rxi->mi.radtr[i].a_einst * (beta + coef);
-      rxi_res->rates[l][l] += rxi->mi.radtr[i].a_einst * \
-                        rxi->mi.enlev[u].statw * coef / rxi->mi.enlev[l].statw;
-      rxi_res->rates[u][l] -= rxi->mi.radtr[i].a_einst * \
-                        rxi->mi.enlev[u].statw * coef / rxi->mi.enlev[l].statw;
-      rxi_res->rates[l][u] -= rxi->mi.radtr[i].a_einst * (beta + coef);
+      float beta = esc_prob (rxi->res.tau[i], SPHERE);
+      float coef = rxi->bg.intens[i] * beta /                       \
+                   (2 * hP * sol) / pow (rxi->rad_transfer[i].xnu, 3);
+
+      double uu = gsl_matrix_get (rxi->res.rates, u, u) +     \
+                  rxi->rad_transfer[i].a_einst * (beta + coef);
+
+      double ll = gsl_matrix_get (rxi->res.rates, l, l) +     \
+                  rxi->rad_transfer[i].a_einst *              \
+                  rxi->energy_level[u-1].statw * coef /       \
+                  rxi->energy_level[l-1].statw;
+
+      double ul = gsl_matrix_get (rxi->res.rates, u, l) -     \
+                  rxi->rad_transfer[i].a_einst *              \
+                  rxi->energy_level[u-1].statw * coef /       \
+                  rxi->energy_level[l-1].statw;
+
+      double lu = gsl_matrix_get (rxi->res.rates, l, u) -     \
+                  rxi->rad_transfer[i].a_einst * (beta + coef);
+
+      gsl_matrix_set (rxi->res.rates, u, u, uu);
+      gsl_matrix_set (rxi->res.rates, l, l, ll);
+      gsl_matrix_set (rxi->res.rates, u, l, ul);
+      gsl_matrix_set (rxi->res.rates, l, u, lu);
     }
 }
 
 void
-main_calculations (struct radexi_data *rxi, struct radexi_results *rxi_res)
+main_calculations (struct rxi_data *rxi)
 {
-  first_iteration(rxi, rxi_res);
+  printf ("--making first iteration...\n");
+  first_iteration(rxi);
+
+  printf ("--correcting rates for collisional rates...\n");
   // Correct rates for collisional rates
-  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
+  for (unsigned int i = 0; i < rxi->n_el; i++)
     {
-      rxi_res->rates[i][i] += rxi->totrate[i];
-      for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
+      double ii = gsl_matrix_get (rxi->res.rates, i, i) + \
+                  gsl_vector_get (rxi->mi.Ctot, i);
+      gsl_matrix_set (rxi->res.rates, i, i, ii);
+      for (unsigned int j = 0; j < rxi->n_el; j++)
         {
           if (i != j)
-            rxi_res->rates[i][j] -= rxi->crate[j][i];
+            {
+              double ij = gsl_matrix_get (rxi->res.rates, i, j) - \
+                          gsl_matrix_get (rxi->mi.C, j, i);
+              gsl_matrix_set (rxi->res.rates, i, j, ij);
+            }
         }
     }
 
   // Write rates to the new variable to preserve it in the future. Also test 
   // whether the matrix whould be reduced to exclude radiatively coupled 
   // levels.
+/*
   float local_rates[rxi->mi.numof_enlev][rxi->mi.numof_enlev];
   float redcrit = 10 * rxi->mc_par.Tkin / hP / sol * kB;
   unsigned int nred = 0;
@@ -140,7 +182,7 @@ main_calculations (struct radexi_data *rxi, struct radexi_results *rxi_res)
       if (rxi->mi.enlev[i].term <= redcrit)
         nred++;
     }
-
+*/
   // Now separates collisionally coupled levels from those that are coupled 
   // by radiative processes, computing an effective cascade matrix for rates of
   // transfer from one low-lyinglevel to another.
@@ -152,31 +194,23 @@ main_calculations (struct radexi_data *rxi, struct radexi_results *rxi_res)
 */
   
   // Solving reduced system of equations explicitly for the low-lying levels
-  /*double lr[rxi->mi.numof_enlev * rxi->mi.numof_enlev];*/
-  /*double rhs[rxi->mi.numof_enlev];*/
-  gsl_vector *b = gsl_vector_calloc (rxi->mi.numof_enlev);
-  gsl_matrix *A = gsl_matrix_calloc (rxi->mi.numof_enlev, rxi->mi.numof_enlev);
-  for (unsigned int i = 0; i < rxi->mi.numof_enlev; i++)
-    {
-      gsl_vector_set (b, i, 1e-20 * rxi->mc_par.total_density);
+  printf ("--solving equations...\n");
+  gsl_vector *b = gsl_vector_alloc (rxi->mi.numof_enlev);
+  gsl_vector_set_all (b, 0);
+  gsl_vector_set (b, b->size-1, 1);
 
-      for (unsigned int j = 0; j < rxi->mi.numof_enlev; j++)
-        {
-          if ((i - 1) != rxi->mi.numof_enlev)
-            gsl_matrix_set (A, i, j, local_rates[i][j]);
-          else
-            gsl_matrix_set (A, i, j, 1);
-        }
+  for (unsigned int i = 0; i < rxi->n_el; i++)
+    {
+      for (unsigned int j = 0; j < rxi->n_el; j++)
+        printf ("%.2e  ", gsl_matrix_get (rxi->res.rates, i, j));
+    printf ("\n");
     }
 
-  gsl_vector_fprintf (stdout, b, "%e");
-
-  gsl_linalg_HH_svx (A, b);
+  gsl_linalg_HH_svx (rxi->res.rates, b);
 
   printf ("result=\n");
   gsl_vector_fprintf (stdout, b, "%e");
 
-  gsl_matrix_free (A);
   gsl_vector_free (b);
   
   /*gsl_matrix_view A = gsl_matrix_view_array (lr, rxi->mi.numof_enlev, rxi->mi.numof_enlev);*/

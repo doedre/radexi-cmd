@@ -60,9 +60,9 @@ static struct option const long_options[] = {
 };
 
 int
-set_rx_options (struct rx_options *opts, int argc, char ** argv)
+set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
 {
-  set_default_rx_options (opts);
+  set_default_rxi_options (opts);
   int option_index = 0;
   int opt;
   while ((opt = getopt_long (argc, argv, 
@@ -120,7 +120,7 @@ set_rx_options (struct rx_options *opts, int argc, char ** argv)
 }
 
 void 
-set_default_rx_options (struct rx_options *opts)
+set_default_rxi_options (struct rxi_options *opts)
 {
   opts->usage_mode = UM_DIALOGUE;
   opts->quite_start = false;
