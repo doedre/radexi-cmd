@@ -151,9 +151,9 @@ rxi_data_calloc (const struct rxi_input *inp)
 
   /* For results  */
   result->res.rates = gsl_matrix_calloc (inp->numof_enlev, inp->numof_enlev);
-  result->res.Tex = malloc (inp->numof_radtr * sizeof (double));
+  result->res.Tex = gsl_vector_calloc (inp->numof_radtr);
   result->res.tau = malloc (inp->numof_radtr * sizeof (double));
-  result->res.pop = malloc (inp->numof_enlev * sizeof (double));
+  result->res.pop = gsl_vector_calloc (inp->numof_enlev);
 
   return result;
 }
@@ -175,9 +175,9 @@ rxi_data_free (struct rxi_data *rxi)
   free (rxi->mc.cp);
 
   gsl_matrix_free (rxi->res.rates);
-  free (rxi->res.Tex);
+  gsl_vector_free (rxi->res.Tex);
   free (rxi->res.tau);
-  free (rxi->res.pop);
+  gsl_vector_free (rxi->res.pop);
 
   free (rxi);
 }
@@ -396,25 +396,29 @@ prepare_for_calculation (struct rxi_data *rxi)
         {
           double ediff = rxi->energy_level[i].term -  \
                          rxi->energy_level[j].term;
+          double lim = fk * ediff / rxi->mc.Tkin;
 
-          if ((ediff > 0) && (fk * ediff / rxi->mc.Tkin < 160))
+          if (ediff > 0)
             {
-              double crate = rxi->energy_level[i].statw /            \
-                             rxi->energy_level[j].statw *            \
-                             exp (- fk * ediff / rxi->mc.Tkin) *     \
-                             gsl_matrix_get (rxi->mi.C, i, j);
-              gsl_matrix_set (rxi->mi.C, i, j, crate);
+              if (lim < 160)
+                {
+                  double crate = rxi->energy_level[i].statw /            \
+                                 rxi->energy_level[j].statw *            \
+                                 exp (- fk * ediff / rxi->mc.Tkin) *     \
+                                 gsl_matrix_get (rxi->mi.C, i, j);
+                  gsl_matrix_set (rxi->mi.C, j, i, crate);
+                }
+              else 
+                gsl_matrix_set (rxi->mi.C, j, i, 0);
             }
-          else 
-            gsl_matrix_set (rxi->mi.C, i, j, 0);
         }
     }
-  
+
   printf ("----conventing collisional rate matrix(not matching with radex but should)\n");
   for (unsigned int i = 0; i < rxi->n_el; i++)
     {
       gsl_vector *conv = gsl_vector_alloc (rxi->n_el);
-      gsl_matrix_get_row (conv, rxi->mi.C, i);
+      gsl_matrix_get_col (conv, rxi->mi.C, i);
       gsl_vector_add (rxi->mi.Ctot, conv);
       gsl_vector_free (conv);
     }

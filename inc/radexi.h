@@ -257,10 +257,10 @@ struct results
 {
   gsl_matrix    *rates;                       /* rates from statistical 
                                                  equilibrium                */
-  double        *Tex;                         /* Excitation temperature [K] */
+  gsl_vector    *Tex;                         /* Excitation temperature [K] */
   double        *tau;                         /* Optical depth for every line
                                                  [cm-1]                     */
-  double        *pop;                         /* level populations          */
+  gsl_vector    *pop;                         /* level populations          */
 };
 
 /* Main structure which defines the input information for future calculations.
