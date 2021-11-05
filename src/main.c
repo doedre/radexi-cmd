@@ -44,7 +44,7 @@ main (int argc, char **argv)
 {
   struct rxi_input inp;
   struct rxi_options rx_opts;
-  
+
   float sf, ef;
   int pathindex = set_rxi_options (&rx_opts, argc, argv);
 
