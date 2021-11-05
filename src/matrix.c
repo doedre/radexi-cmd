@@ -105,9 +105,10 @@ esc_prob (const double tau, enum Geometry g)
 
 /* Using results of first iteration to renew starting conditions and make them
  * more precise */
-static void
+static int
 refresh_starting_conditions (struct rxi_data *rxi)
 {
+  int thick_lines = 0;
   for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
     {
       unsigned int u = rxi->rad_transfer[i].ulev;
@@ -129,6 +130,8 @@ refresh_starting_conditions (struct rxi_data *rxi)
             (gsl_vector_get (rxi->res.pop, l) * rxi->energy_level[u].statw /  \
             rxi->energy_level[l].statw - gsl_vector_get (rxi->res.pop, u)) /  \
             (1.0645 * 8 * M_PI * xt / rxi->rad_transfer[i].a_einst);
+
+      if (rxi->res.tau[i] > 1e-2) thick_lines++;
 
       float beta = esc_prob (rxi->res.tau[i], SPHERE);
       float coef = rxi->bg.intens[i] * beta /                 \
@@ -158,14 +161,16 @@ refresh_starting_conditions (struct rxi_data *rxi)
       gsl_matrix_set (rxi->res.rates, l, l, ll);
       gsl_matrix_set (rxi->res.rates, u, l, ul);
       gsl_matrix_set (rxi->res.rates, l, u, lu);
-      printf ("[%u][%u]th element is %.2e\n", u, l, gsl_matrix_get (rxi->res.rates, u, l));
     }
+  return thick_lines;
 }
 
 void
 main_calculations (struct rxi_data *rxi)
 {
   unsigned int iter = 0;
+  int thick_lines = 1;
+  double stop_condition = 0;
   // Old level populations
   gsl_vector *prev_pop = gsl_vector_calloc (rxi->n_el);
   gsl_vector *b = gsl_vector_calloc (rxi->mi.numof_enlev);
@@ -174,14 +179,11 @@ main_calculations (struct rxi_data *rxi)
       gsl_matrix_set_all (rxi->res.rates, -1e-30 * rxi->mc.total_density);
       printf ("--making %u iteration...\n", iter);
       if (iter == 0)
-        {
-          starting_conditions (rxi);
-        }
+        starting_conditions (rxi);
       else 
-        {
-          refresh_starting_conditions (rxi);
-        }
+        thick_lines = refresh_starting_conditions (rxi);
 
+      stop_condition = 0;
       printf ("--correcting rates for collisional rates...\n");
       // Correct rates for collisional rates
       for (unsigned int i = 0; i < rxi->n_el; i++)
@@ -191,7 +193,6 @@ main_calculations (struct rxi_data *rxi)
           gsl_matrix_set (rxi->res.rates, i, i, ii);
           for (unsigned int j = 0; j < rxi->n_el; j++)
             {
-      printf ("[%u][%u]th element is %.2e\n", i, j, gsl_matrix_get (rxi->res.rates, i, j));
               if (i != j)
                 {
                   double ij = gsl_matrix_get (rxi->res.rates, i, j) - \
@@ -203,17 +204,9 @@ main_calculations (struct rxi_data *rxi)
 
       printf ("--solving equations...\n");
       gsl_vector_set_all (b, 0);
-      // This is done in RADEX, but i dont know why
       gsl_vector_set (b, b->size-1, 1);
       for (unsigned int i = 0; i < rxi->n_el; i++)
         gsl_matrix_set (rxi->res.rates, rxi->res.rates->size1-1, i, 1);
-
-      for (unsigned int i = 0; i < rxi->n_el; i++)
-      {
-        for (unsigned int j = 0; j < rxi->n_el; j++)
-          printf ("%.2e  ", gsl_matrix_get (rxi->res.rates, i, j));
-        printf ("\n");
-      }
 
       gsl_linalg_HH_svx (rxi->res.rates, b);
 
@@ -231,8 +224,14 @@ main_calculations (struct rxi_data *rxi)
 
       /* Store new level populations  */
       printf ("--store new level populations...\n");
-      gsl_vector_scale (b, 1 / total_pop);
-      gsl_vector_memcpy (rxi->res.pop, b);
+      for (unsigned int i = 0; i < rxi->n_el; i++)
+        {
+          const double new_pop_i = gsl_vector_get (b, i) / total_pop;
+
+          gsl_vector_set (rxi->res.pop,
+                          i,
+                          (fabs (new_pop_i) > 1e-20) ? new_pop_i : 1e-20);
+        }
 
       printf ("pop=\n");
       gsl_vector_fprintf (stdout, rxi->res.pop, "%.2e");
@@ -253,8 +252,13 @@ main_calculations (struct rxi_data *rxi)
           if (iter == 0)
             {
               gsl_vector_set (rxi->res.Tex, i, new_Tex_i);
+              stop_condition = 1;
               continue;
             }
+
+          if (rxi->res.tau[i] > 0.01)
+            stop_condition += fabs ((gsl_vector_get (rxi->res.Tex, i) - new_Tex_i) / new_Tex_i);
+
           gsl_vector_set (rxi->res.Tex, i, 0.5 *              \
                 (new_Tex_i + gsl_vector_get(rxi->res.Tex, i)));
 
@@ -267,18 +271,20 @@ main_calculations (struct rxi_data *rxi)
 
       /* Doing underrelaxation  */
       printf ("--doing underrelaxation...\n");
-      if (iter != 0)
+      /*if (iter != 0)
         for (unsigned int i = 0; i < rxi->n_rt; i++)
           {
             double new_pop_i = 0.3 * gsl_vector_get (rxi->res.pop, i) +   \
                                0.7 * gsl_vector_get (prev_pop, i);
             gsl_vector_set (rxi->res.pop, i, new_pop_i);
           }
-
+*/
       printf ("Tex=\n");
       gsl_vector_fprintf (stdout, rxi->res.Tex, "%.2e");
       iter++;
-    } while (iter != 32);
+
+      printf ("\n thick_lines = %d, stop_condition = %.3e\n", thick_lines, stop_condition);
+    } while (thick_lines != 0 && stop_condition >= 1e-6);
 
   gsl_vector_free (prev_pop);
   gsl_vector_free (b);
