@@ -1210,9 +1210,16 @@ int linenoiseHistoryLoad(const char *filename) {
 
     if (fp == NULL) return -1;
 
+    if (history) {
+        int j;
+
+        for (j = 0; j < history_len; j++)
+            free(history[j]);
+        history_len = 0;
+    }
+
     while (fgets(buf,LINENOISE_MAX_LINE,fp) != NULL) {
         char *p;
-
         p = strchr(buf,'\r');
         if (!p) p = strchr(buf,'\n');
         if (p) *p = '\0';

@@ -108,8 +108,7 @@ dialogue_usage (int state)
     }
   else if (state == EXIT_REQUEST)
     {
-      printf ("\x1B[0;37;40m");
-      exit (EXIT_SUCCESS);
+      printf ("\x1B[0;37;40m"); exit (EXIT_SUCCESS);
     }
 }
 
@@ -488,7 +487,7 @@ isAllowedCps (const char *str,
 
   /* Parse line and then cast its containments by different molecules  */
   int numof_cps = 0;
-  for (char *token = storage; token; token = strchr (token, ','))
+  for (char *token = storage; token; token = strchr (token, ';'))
     {
       /* Parse molecule by its name and density */
       if (numof_cps != 0)
@@ -500,10 +499,14 @@ isAllowedCps (const char *str,
       for (char *t = strtok (storage2, " "); t; t = strtok (NULL, " "))
         {
           if (numof_t == 0)
+            {
               inp->cps[numof_cps].name = conv_name_to_int (t);
+              if (inp->cps[numof_cps].name == NO_MOLECULE)
+                res = false;
+            }
           else if (numof_t == 1)
             {
-              float d = atof (t);
+              double d = strtod (t, NULL);
               if (rx_opts->dens_log_scale)
                 {
                   if (d >= 0 && d <= 14)
@@ -520,7 +523,7 @@ isAllowedCps (const char *str,
                 }
             }
           else 
-              break;
+            break;
           numof_t++;
         }
       numof_cps++;
@@ -600,7 +603,7 @@ enter_geometry (struct rxi_input *inp,
       if (isAllowedGeometry (line, inp))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (".colpartners");
+          linenoiseHistorySave (".geometry");
           break;
         }
       else if (!strcmp (line, "quit"))

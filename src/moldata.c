@@ -202,9 +202,9 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
       mkdir (folder_name, 0700);
   else 
     {
-      printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-      printf ("Specified molecule name already exists, rewrite it? (Y/n)");
-      printf ("\x1B[0;37;40m\x1B[3;37;40m\n");
+      printf (BMAG  "  ## " reset
+              WHT   "Specified molecule name already exists, rewrite it?" reset
+              BWHT  " (Y/n)" reset "\n");
 
       char *choice;
       choice = (char *) malloc (1);
@@ -218,9 +218,8 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
             }
           else 
             {
-              printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-              printf ("Nothing to do, quitting...");
-              printf ("\x1B[0;37;40m\n");
+              printf (BMAG  "  ## " reset
+                      WHT   "Nothing to do, quitting..." reset "\n");
               exit (EXIT_SUCCESS);
             } 
         }
