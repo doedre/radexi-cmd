@@ -39,7 +39,10 @@
 
 #include <gsl/gsl_matrix.h>
 
+#include "ANSI-color-codes.h"
+
 #define PROGRAM_NAME          "radexi"
+#define PROGRAM_PATH          "data"
 #define RXI_MOLECULE_MAX_SIZE 15  /* Max lenght for the molecule name 
                                      defined by the user                    */
 #define RXI_MAX_EXCESS_SIZE   10  /* Max characters to read from .csv line  */
@@ -48,7 +51,6 @@
 #define RXI_MAX_COLL_PARTNERS 7   /* Max number of collision partners       */
 #define RXI_MAX_COLL_TEMPS    30  /* Max number of collisional temperatures */
 #define RXI_MAX_COLL_TRANS    3000  /* Max number of collision transitions  */
-
 
 /* Physical constants */
 extern const double sol;              /* speed of light       [cm s-1]      */

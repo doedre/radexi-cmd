@@ -30,12 +30,14 @@
  *
  * ---------------------------------------------------------------------*/
 
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <string.h>
 #include <math.h>
 
 #include "radexi.h"
 #include "linenoise.h"
-
 
 /* States of the dialogue w/ the user. All possible errors are collected here 
  * and used in 'dialogue_usage()' function. */
@@ -106,39 +108,77 @@ dialogue_usage (int state)
     }
   else if (state == EXIT_REQUEST)
     {
-      printf ("\x1B[0;37;40m");
-      exit (EXIT_SUCCESS);
+      printf ("\x1B[0;37;40m"); exit (EXIT_SUCCESS);
     }
+}
+
+/* Gets directory structure and writes folder's name into name. 
+ * returns:
+ * * -1 if directory or file starts with '.';
+ * * -2 if it's not a directory;
+ * * 1 on success;
+ * * 0 if no files left in dir;
+ */
+int
+get_molecule_name (DIR *dir, char *name)
+{
+  struct dirent *ent;
+  struct stat sb;
+  if ((ent = readdir (dir)) != NULL)
+    {
+      /* Skips folders starting at '.'  */
+      if (strncmp (ent->d_name, ".", 1) == 0)
+        return -1;
+
+      /* Write full path to the folder/file to get information about it */
+      char fpath[256];
+      strcpy (fpath, PROGRAM_PATH);
+      strcat (fpath, "/");
+      strcat (fpath, ent->d_name);
+
+      /* Check if current path belongs to the folder  */
+      stat (fpath, &sb);
+      if (S_ISDIR (sb.st_mode))
+        strncpy (name, ent->d_name, RXI_MOLECULE_MAX_SIZE);
+      else 
+        return -2;
+    }
+  else 
+    return 0;
+
+  return 1;
 }
 
 /* Add all names and exceptions if no molecule was added  */
 static void
 molecules_completion (const char *buf, linenoiseCompletions *lc)
 {
-  if (buf[0] == 'c')
-    {
-      linenoiseAddCompletion (lc, "ch3oh_a");
-      linenoiseAddCompletion (lc, "ch3oh_e");
+  DIR *dir;
+  char *mname = malloc (RXI_MOLECULE_MAX_SIZE * sizeof (char));
+  if ((dir = opendir (PROGRAM_PATH)) != NULL)
+    { 
+      for (int p = get_molecule_name (dir, mname); 
+           p;
+           p = get_molecule_name(dir, mname))
+        {
+          if (p > 0 && !strncmp (buf, mname, strlen(buf)))
+            linenoiseAddCompletion (lc, mname);
+        }
     }
-  else if (buf[0] == 'l')
-    {
-      linenoiseAddCompletion (lc, "list");
-    }
+  free (dir);
+  free (mname);
 }
 
 /* Add all names and exceptions if no molecule was added  */
 static void
 geometry_completion (const char *buf, linenoiseCompletions *lc)
 {
-  if (buf[0] == 'l')
-    {
-      linenoiseAddCompletion (lc, "lvg");
-    }
-  else if (buf[0] == 's')
-    {
-      linenoiseAddCompletion (lc, "sphere");
-      linenoiseAddCompletion (lc, "slab");
-    }
+  if (!strncmp (buf, "lvg", strlen (buf)))
+    linenoiseAddCompletion (lc, "lvg");
+  if (!strncmp (buf, "sphere", strlen (buf)))
+    linenoiseAddCompletion (lc, "sphere");
+  if (!strncmp (buf, "slab", strlen (buf)))
+    linenoiseAddCompletion (lc, "slab");
 }
 
 /* Helps w/ kinetic temperature range.  */
@@ -165,11 +205,23 @@ hints_temp (const char *buf, int *color, int *bold)
 /* Searches if the molecule, entered by the user, is added to the
  * radexi database  */
 static bool
-isAllowedMolecule (const char * str)
+isAllowedMolecule (const char *str)
 {
   bool res = false;
-  if (!strcmp (str, "ch3oh_e") || !strcmp (str, "hco"))
-    res = true;
+  DIR *dir;
+  char *mname = malloc (RXI_MOLECULE_MAX_SIZE * sizeof (char));
+  if ((dir = opendir (PROGRAM_PATH)) != NULL)
+    { 
+      for (int p = get_molecule_name (dir, mname); 
+           p;
+           p = get_molecule_name(dir, mname))
+        {
+          if (p > 0 && !strcmp (str, mname))
+            res = true;
+        }
+    }
+  free (dir);
+  free (mname);
   return res;
 }
 
@@ -435,7 +487,7 @@ isAllowedCps (const char *str,
 
   /* Parse line and then cast its containments by different molecules  */
   int numof_cps = 0;
-  for (char *token = storage; token; token = strchr (token, ','))
+  for (char *token = storage; token; token = strchr (token, ';'))
     {
       /* Parse molecule by its name and density */
       if (numof_cps != 0)
@@ -447,10 +499,14 @@ isAllowedCps (const char *str,
       for (char *t = strtok (storage2, " "); t; t = strtok (NULL, " "))
         {
           if (numof_t == 0)
+            {
               inp->cps[numof_cps].name = conv_name_to_int (t);
+              if (inp->cps[numof_cps].name == NO_MOLECULE)
+                res = false;
+            }
           else if (numof_t == 1)
             {
-              float d = atof (t);
+              double d = strtod (t, NULL);
               if (rx_opts->dens_log_scale)
                 {
                   if (d >= 0 && d <= 14)
@@ -467,7 +523,7 @@ isAllowedCps (const char *str,
                 }
             }
           else 
-              break;
+            break;
           numof_t++;
         }
       numof_cps++;
@@ -547,7 +603,7 @@ enter_geometry (struct rxi_input *inp,
       if (isAllowedGeometry (line, inp))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (".colpartners");
+          linenoiseHistorySave (".geometry");
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -576,22 +632,22 @@ start_dialogue (float *sfreq,
 
   linenoiseHistorySetMaxLen (10);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter molecule's name ");
-  printf ("(\x1B[2;37;40m'\x1B[4;37;40mlist\x1B[0;37;40m\x1B[2;37;40m'");
-  printf (" to see the variants\x1B[0;37;40m)\x1B[3;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter molecule's name (press " reset
+          UWHT  "<TAB>" reset 
+          WHT   " to guess)" reset "\n");
  
   enter_molecule (inp->name);
       
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter starting & ending frequencies ");
-  printf ("\x1B[1;37;40m[GHz]\x1B[0;37;40m\x1B[3;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter starting & ending frequencies " reset
+          BWHT  "[GHz]" reset "\n");
 
   enter_frequencies (sfreq, efreq);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter kinetic temperature ");
-  printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter kinetic temperature " reset
+          BWHT  "[K]" reset "\n");
 
   enter_double_parameter (&inp->Tkin, 
                           TKIN_FAIL, 
@@ -601,9 +657,9 @@ start_dialogue (float *sfreq,
                           hints_temp, 
                           isAllowedTemp);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter background temperature ");
-  printf ("\x1B[1;37;40m[K]\x1B[0;37;40m\x1B[3;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter background temperature " reset
+          BWHT  "[K]" reset "\n");
 
   enter_double_parameter (&inp->Tbg, 
                           TBG_FAIL, 
@@ -613,9 +669,9 @@ start_dialogue (float *sfreq,
                           hints_temp, 
                           isAllowedTemp);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter column density for the molecule ");
-  printf ("\x1B[1;37;40m[cm-2]\x1B[0;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter column density for the molecule " reset
+          BWHT  "[cm-2]" reset "\n");
 
   enter_double_parameter (&inp->coldens, 
                           COLDENS_FAIL, 
@@ -625,12 +681,12 @@ start_dialogue (float *sfreq,
                           NULL, 
                           isAllowedColdens);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter FWHM lines width ");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter FWHM lines width " reset);
   if (opts->hz_width) 
-    printf ("\x1B[1;37;40m[Hz]\x1B[0;37;40m\n");
+    printf (BWHT "[Hz]" reset "\n");
   else 
-    printf ("\x1B[1;37;40m[km s-1]\x1B[0;37;40m\n");
+    printf (BWHT "[km s-1]" reset "\n");
 
   enter_double_parameter (&inp->fwhm, 
                           FWHM_FAIL, 
@@ -640,17 +696,17 @@ start_dialogue (float *sfreq,
                           NULL, 
                           isAllowedWidth);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter collision partners and their densities ");
-  printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter collision partners and their densities "
+          BWHT  "[cm-3]" reset "\n");
 
   enter_collision_partners (inp, 
                             COLLISION_FAIL, 
                             opts);
 
-  printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-  printf ("Enter type of the cloud's geometry ");
-  printf ("\x1B[1;37;40m[cm-3]\x1B[0;37;40m\n");
+  printf (BMAG  "  ## " reset
+          WHT   "Enter type of the cloud's geometry "
+          BWHT  "[cm-3]" reset "\n");
 
   enter_geometry (inp, GEOMETRY_FAIL);
 
