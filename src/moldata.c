@@ -83,7 +83,7 @@ write_csv  (FILE *molfile, const char *mol_name, const char *outfile_suf)
 
 /* Used to extract collision partner's name from the string without the user */
 static enum ColPart
-extract_col_partner (char * line)
+extract_col_partner (char *line)
 {
   enum ColPart result = H2;
   /* Possible names */
@@ -181,7 +181,7 @@ define_collision_partner (FILE *molfile, FILE *mol_info_file)
 
 /* This function controls adding new molecules to the database. */
 static void
-add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
+add_molecular_file (char *mol_file_name)
 {
   FILE *molfile = fopen (mol_file_name, "r");
   if (!molfile)
@@ -194,7 +194,7 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
   /* The name shouldn't contain more than 15 chars  */
   folder_name = (char *) malloc (20);
   strcpy (folder_name, "data/");
-  strcat (folder_name, rx_opts->molecule_name);
+  strcat (folder_name, rxi_opts.molecule_name);
 
   /* Create a folder if it doesn't exist  */
   struct stat sb;
@@ -229,8 +229,8 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
   char *molecular_info_file_name;
   molecular_info_file_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+10);
   sprintf (molecular_info_file_name, "data/%s/%s.info", 
-                                      rx_opts->molecule_name, 
-                                      rx_opts->molecule_name);
+                                      rxi_opts.molecule_name, 
+                                      rxi_opts.molecule_name);
 
   /* File with information about the molecule? which cant be loaded in .csv 
    * database properly  */
@@ -265,14 +265,14 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
     }  
    
   /* Writing .csv file with energy levels */
-  write_csv (molfile, rx_opts->molecule_name, "enlev");
+  write_csv (molfile, rxi_opts.molecule_name, "enlev");
 
   fgets (line, n, molfile);
   fprintf (mi, "Number of radiative transitions: %s", line);
   fgets (line, n, molfile);
 
   /* Writing .csv file with radiative transitions */
-  write_csv (molfile, rx_opts->molecule_name, "radtr");
+  write_csv (molfile, rxi_opts.molecule_name, "radtr");
 
   fgets (line, n, molfile);
   fprintf (mi, "Number of collision partners: %s\n", line);
@@ -286,7 +286,7 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
       char *cp_name;
       cp_name = (char *) malloc (10);
       conv_int_to_name (cp, cp_name);
-      write_csv (molfile, rx_opts->molecule_name, cp_name);
+      write_csv (molfile, rxi_opts.molecule_name, cp_name);
       free (cp_name);
     }
   if (cp == -1)
@@ -299,7 +299,7 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
   else 
     {
       printf ("\x1B[0;37;40m\x1B[1;35;40m  ## \x1B[0;37;40m");
-      printf ("%s molecule is written.", rx_opts->molecule_name);
+      printf ("%s molecule is written.", rxi_opts.molecule_name);
       printf ("\x1B[0;37;40m\x1B[3;37;40m\n");
     }
 
@@ -310,10 +310,10 @@ add_molecular_file (char *mol_file_name, const struct rxi_options *rx_opts)
 }
 
 void 
-operate_molecular_files (char *mol_file_name, const struct rxi_options *rx_opts)
+operate_molecular_files (char *mol_file_name)
 {
-  if (rx_opts->usage_mode == UM_MOLECULAR_FILE_ADD)
+  if (rxi_opts.usage_mode == UM_MOLECULAR_FILE_ADD)
     {
-      add_molecular_file (mol_file_name, rx_opts);
+      add_molecular_file (mol_file_name);
     }
 }

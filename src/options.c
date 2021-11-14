@@ -66,7 +66,7 @@ set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
   int option_index = 0;
   int opt;
   while ((opt = getopt_long (argc, argv, 
-                              "lqHhor:", 
+                              "flqHhor:", 
                               long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -92,6 +92,11 @@ set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
 
         case 'r':
           opts->user_defined_out_file_path = true;
+          strcpy (opts->result_path, optarg);
+          break;
+
+        case 'f':
+          opts->force_fs = true;
           break;
 
         case ADD_MOLECULE_OPTION:
@@ -115,6 +120,9 @@ set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
 
         }
     }
+  
+  if (optind == -1)
+    opts->usage_mode = UM_FILE;
 
   return optind;
 }
@@ -123,6 +131,7 @@ void
 set_default_rxi_options (struct rxi_options *opts)
 {
   opts->usage_mode = UM_DIALOGUE;
+  opts->force_fs = false;
   opts->quite_start = false;
   opts->cmd_output = false;
   opts->dens_log_scale = false;

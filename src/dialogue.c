@@ -58,8 +58,7 @@ enum
 /* Those two are used to lower the amount of input functions used by this 
  * program. Need to rethink their usage in future.  */
 typedef bool (allowed_value)(const char *str, 
-                             double *par, 
-                             const struct rxi_options *rx_opts);
+                             double *par);
 
 /* This function takes the state argument, which is one from enum above, and 
  * then it either shows an error or exits (tries to do it good). */
@@ -332,11 +331,8 @@ enter_frequencies (float *sf, float *ef)
 /* Casts str to float and checks if it's of the correct range. */
 static bool 
 isAllowedTemp (const char *str, 
-               double *val, 
-               const struct rxi_options *rx_opts)
+               double *val)
 {
-  /* Supress unused parameter warning */
-  (void) rx_opts;
 
   bool res = false;
   double f = strtod (str, NULL);
@@ -355,14 +351,13 @@ isAllowedTemp (const char *str,
  * Also works w/ -L flag. */
 static bool
 isAllowedColdens (const char *str, 
-                  double *val, 
-                  const struct rxi_options *rx_opts)
+                  double *val)
 {
   bool res = false;
   double f = strtod (str, NULL);
 
   /* Checks for -l option */
-  if (rx_opts->dens_log_scale)
+  if (rxi_opts.dens_log_scale)
     {
       if ((f > 5) && (f < 25))
         {
@@ -386,13 +381,12 @@ isAllowedColdens (const char *str,
  * Also works w/ -H flag. */
 static bool
 isAllowedWidth (const char *str, 
-                double *val, 
-                const struct rxi_options *rx_opts)
+                double *val)
 {
   bool res = false;
   double f = strtod (str, NULL);
 
-  if (rx_opts->hz_width)
+  if (rxi_opts.hz_width)
     {
       if ((f > 1e-4) && (f < 1e4))
         {
@@ -416,7 +410,6 @@ isAllowedWidth (const char *str,
 static void
 enter_double_parameter (double *par, 
                         int fail_state,
-                        const struct rxi_options *rx_opts,
                         const char *history_file, 
                         linenoiseCompletionCallback *completion,
                         linenoiseHintsCallback *hints,
@@ -431,7 +424,7 @@ enter_double_parameter (double *par,
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
-      if (isAllowed (line, par, rx_opts))
+      if (isAllowed (line, par))
         {
           linenoiseHistoryAdd (line);
           linenoiseHistorySave (history_file);
@@ -477,8 +470,7 @@ conv_name_to_int (const char *str)
 /* Parses a line to get collision partner's name and it's volume density. */
 static bool
 isAllowedCps (const char *str, 
-              struct rxi_input *inp, 
-              const struct rxi_options *rx_opts)
+              struct rxi_input *inp)
 {
   bool res = true;
   char *storage;
@@ -507,7 +499,7 @@ isAllowedCps (const char *str,
           else if (numof_t == 1)
             {
               double d = strtod (t, NULL);
-              if (rx_opts->dens_log_scale)
+              if (rxi_opts.dens_log_scale)
                 {
                   if (d >= 0 && d <= 14)
                     inp->cps[numof_cps].dens = powf (10, d);
@@ -538,8 +530,7 @@ isAllowedCps (const char *str,
 /* Equal to the enter_float(), but used for collision partner's retrieval.  */
 static void
 enter_collision_partners (struct rxi_input *inp,
-                          int fail_state,
-                          const struct rxi_options *rx_opts)
+                          int fail_state)
 {
   size_t size = 30;
   char *line;
@@ -548,7 +539,7 @@ enter_collision_partners (struct rxi_input *inp,
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
-      if (isAllowedCps (line, inp, rx_opts))
+      if (isAllowedCps (line, inp))
         {
           linenoiseHistoryAdd (line);
           linenoiseHistorySave (".colpartners");
@@ -622,10 +613,9 @@ enter_geometry (struct rxi_input *inp,
 void
 start_dialogue (float *sfreq, 
                 float *efreq, 
-                struct rxi_input *inp,
-                const struct rxi_options *opts) 
+                struct rxi_input *inp)
 {
-  if (!opts->quite_start)
+  if (!rxi_opts.quite_start)
     {
       printf ("starting message here\n");
     }
@@ -651,7 +641,6 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->Tkin, 
                           TKIN_FAIL, 
-                          opts, 
                           ".Tkin", 
                           NULL, 
                           hints_temp, 
@@ -663,7 +652,6 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->Tbg, 
                           TBG_FAIL, 
-                          opts, 
                           ".Tbg", 
                           NULL, 
                           hints_temp, 
@@ -675,7 +663,6 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->coldens, 
                           COLDENS_FAIL, 
-                          opts, 
                           ".coldens",
                           NULL, 
                           NULL, 
@@ -683,14 +670,13 @@ start_dialogue (float *sfreq,
 
   printf (BMAG  "  ## " reset
           WHT   "Enter FWHM lines width " reset);
-  if (opts->hz_width) 
+  if (rxi_opts.hz_width) 
     printf (BWHT "[Hz]" reset "\n");
   else 
     printf (BWHT "[km s-1]" reset "\n");
 
   enter_double_parameter (&inp->fwhm, 
                           FWHM_FAIL, 
-                          opts, 
                           ".fwhm",
                           NULL, 
                           NULL, 
@@ -700,9 +686,7 @@ start_dialogue (float *sfreq,
           WHT   "Enter collision partners and their densities "
           BWHT  "[cm-3]" reset "\n");
 
-  enter_collision_partners (inp, 
-                            COLLISION_FAIL, 
-                            opts);
+  enter_collision_partners (inp, COLLISION_FAIL);
 
   printf (BMAG  "  ## " reset
           WHT   "Enter type of the cloud's geometry "
