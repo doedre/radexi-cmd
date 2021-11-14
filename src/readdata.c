@@ -125,35 +125,34 @@ rxi_data_calloc (const struct rxi_input *inp)
   result->mc.cp = malloc (inp->numof_colpart * sizeof (struct colpart));
   for (unsigned int i = 0; i < inp->numof_colpart; i++)
     {
-      result->mc.cp[i].ucollev = malloc (inp->cps[i].numof_coltr *  \
-                                         sizeof (unsigned int));
-      result->mc.cp[i].lcollev = malloc (inp->cps[i].numof_coltr *  \
-                                         sizeof (unsigned int));
-      result->mc.cp[i].K = gsl_matrix_calloc (inp->numof_enlev, 
-                                              inp->numof_enlev);
-      
-      result->mc.cp[i].name = inp->cps[i].name;
-      result->mc.cp[i].dens = inp->cps[i].dens;
-      result->mc.cp[i].numof_coltr = inp->cps[i].numof_coltr;
-      result->mc.cp[i].numof_temps = inp->cps[i].numof_temps;
+      result->mc.cp[i].name         = inp->cps[i].name;
+      result->mc.cp[i].dens         = inp->cps[i].dens;
+      result->mc.cp[i].numof_coltr  = inp->cps[i].numof_coltr;
+      result->mc.cp[i].numof_temps  = inp->cps[i].numof_temps;
+      result->mc.cp[i].ucollev      = malloc (inp->cps[i].numof_coltr * sizeof (unsigned int));
+      result->mc.cp[i].lcollev      = malloc (inp->cps[i].numof_coltr * sizeof (unsigned int));
+      result->mc.cp[i].K            = gsl_matrix_calloc (inp->numof_enlev + 1, inp->numof_enlev + 1);
+
       for (unsigned int t = 0; t < inp->cps[i].numof_temps; t++)
-        result->mc.cp[i].temps[t] = inp->cps[i].temps[t];
+        result->mc.cp[i].temps[t]   = inp->cps[i].temps[t];
     }
 
   /* Then for molecular information in mol_info struct  */
-  result->mi.el = malloc (inp->numof_enlev * sizeof (struct enlev));
-  result->mi.rt = malloc (inp->numof_radtr * sizeof (struct radtr));
-  result->mi.C = gsl_matrix_calloc (inp->numof_enlev, inp->numof_enlev);
-  result->mi.Ctot = gsl_vector_calloc (inp->numof_enlev);
+  result->mi.el     = malloc (inp->numof_enlev * sizeof (struct enlev));
+  result->mi.rt     = malloc (inp->numof_radtr * sizeof (struct radtr));
+  result->mi.C      = gsl_matrix_calloc (inp->numof_enlev + 1, inp->numof_enlev + 1);
+  result->mi.Ctot   = gsl_vector_calloc (inp->numof_enlev + 1);
 
   /* For background field */
   result->bg.intens = malloc (inp->numof_radtr * sizeof (double));
 
   /* For results  */
-  result->res.rates = gsl_matrix_calloc (inp->numof_enlev, inp->numof_enlev);
-  result->res.Tex = gsl_vector_calloc (inp->numof_radtr);
-  result->res.tau = malloc (inp->numof_radtr * sizeof (double));
-  result->res.pop = gsl_vector_calloc (inp->numof_enlev);
+  result->res.rates = gsl_matrix_calloc (inp->numof_enlev + 1, inp->numof_enlev + 1);
+  result->res.Tex   = gsl_vector_calloc (inp->numof_radtr);
+  result->res.tau   = malloc (inp->numof_radtr * sizeof (double));
+  result->res.pop   = gsl_vector_calloc (inp->numof_enlev);
+  result->res.Tant  = malloc (inp->numof_radtr * sizeof (double));
+  result->res.TR    = malloc (inp->numof_radtr * sizeof (double));
 
   return result;
 }
@@ -161,8 +160,6 @@ rxi_data_calloc (const struct rxi_input *inp)
 void
 rxi_data_free (struct rxi_data *rxi)
 {
-  gsl_vector_free (rxi->mi.Ctot);
-  gsl_matrix_free (rxi->mi.C);
   free (rxi->mi.rt);
   free (rxi->mi.el);
   for (unsigned int i = 0; i < rxi->mc.numof_colpart; i++)
@@ -173,11 +170,15 @@ rxi_data_free (struct rxi_data *rxi)
     }
   free (rxi->bg.intens);
   free (rxi->mc.cp);
+  gsl_matrix_free (rxi->mi.C);
+  gsl_vector_free (rxi->mi.Ctot);
 
   gsl_matrix_free (rxi->res.rates);
   gsl_vector_free (rxi->res.Tex);
   free (rxi->res.tau);
   gsl_vector_free (rxi->res.pop);
+  free (rxi->res.Tant);
+  free (rxi->res.TR);
 
   free (rxi);
 }
@@ -417,7 +418,7 @@ prepare_for_calculation (struct rxi_data *rxi)
   printf ("----conventing collisional rate matrix(not matching with radex but should)\n");
   for (unsigned int i = 0; i < rxi->n_el; i++)
     {
-      gsl_vector *conv = gsl_vector_alloc (rxi->n_el);
+      gsl_vector *conv = gsl_vector_alloc (rxi->n_el + 1);
       gsl_matrix_get_col (conv, rxi->mi.C, i);
       gsl_vector_add (rxi->mi.Ctot, conv);
       gsl_vector_free (conv);

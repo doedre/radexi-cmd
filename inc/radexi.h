@@ -42,6 +42,7 @@
 #include "ANSI-color-codes.h"
 
 #define PROGRAM_NAME          "radexi"
+#define PROGRAM_VERSION       "0.1"
 #define PROGRAM_PATH          "data"
 #define RXI_MOLECULE_MAX_SIZE 15  /* Max lenght for the molecule name 
                                      defined by the user                    */
@@ -58,6 +59,8 @@ extern const double hP;               /* Planck's constant    [erg s]       */
 extern const double kB;               /* Boltzman's constant  [erg K-1]     */
 
 extern const double fk;               /* hP * sol / kB                      */
+
+extern struct rxi_options rxi_opts;
 
 /* Defines how molecular cloud's parameters will be collected. */
 enum UsageMode
@@ -84,15 +87,14 @@ struct rxi_options
    */
   enum UsageMode usage_mode;
 
-  /* Path to the input file in case of UM_FILE usage_mode. */
-  char inp_file_path[80];
-
-  /* Path to the file w/ results. */
-  char out_file_path[80];
-
   /* Molecule name defined by the user when adding one in case of 
    * UM_MOLECULAR_FILE usage_mode.  */
   char molecule_name[RXI_MOLECULE_MAX_SIZE];
+
+  /* Forces file rewrite if specified files for results of calculation 
+   * already exist.
+   * -f flag: disabled by default */
+  bool force_fs;
 
   /* Whether resulting table should be printed in the terminal or not.
    * -o flag: disabled by default */
@@ -115,8 +117,10 @@ struct rxi_options
    * -r or --result flag */
   bool user_defined_out_file_path;
 
-};
+  /* Specified path for user's output file  */
+  char result_path[100];
 
+};
 
 /* Exit statuses. */
 enum
@@ -263,6 +267,9 @@ struct results
   double        *tau;                         /* Optical depth for every line
                                                  [cm-1]                     */
   gsl_vector    *pop;                         /* level populations          */
+
+  double        *Tant;                        /* antenna temperature    [K] */
+  double        *TR;                          /* radiation temperature  [K] */
 };
 
 /* Main structure which defines the input information for future calculations.
@@ -288,6 +295,7 @@ struct rxi_data
 # define coll_partner mc.cp
 
 struct rxi_data *rxi_data_calloc (const struct rxi_input *inp);
+
 void rxi_data_free (struct rxi_data *rxi);
 
 /* Checks what needs to be printed if there are some errors during the launch
@@ -308,8 +316,7 @@ void set_default_rxi_options (struct rxi_options *rx_opts);
  * fills rxi.mc part with the basic information about the molecular cloud. */
 void start_dialogue (float *sfreq, 
                      float *efreq,   
-                     struct rxi_input *inp,
-                     const struct rxi_options *rx_opts);
+                     struct rxi_input *inp);
 
 /* Reads .info file.
  * Returns:
@@ -325,7 +332,13 @@ int calculate_bg_field (struct rxi_data *rxi);
 
 void main_calculations (struct rxi_data *rxi);
 
+void calculate_results (const float srfeq, const float efreq, struct rxi_data *rxi);
+
 /* Reads usage_mode and decides what to do with the given molecular file  */
-void operate_molecular_files (char *mol_file, const struct rxi_options *rx_opts);
+void operate_molecular_files (char *mol_file);
+
+int check_result_path (const char *result_path);
+
+int write_results(const struct rxi_data *rxi, const char *result_path);
 
 #endif  // RADEXI_H

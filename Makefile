@@ -1,5 +1,5 @@
-bin/radexi : main.o linenoise.o dialogue.o options.o readdata.o moldata.o bgfield.o matrix.o
-	gcc -std=c99 -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas bin/main.o bin/linenoise.o bin/readdata.o bin/moldata.o bin/dialogue.o bin/options.o bin/bgfield.o bin/matrix.o -o bin/radexi
+bin/radexi : main.o linenoise.o dialogue.o options.o readdata.o moldata.o bgfield.o matrix.o output.o
+	gcc -std=c99 -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas bin/main.o bin/linenoise.o bin/readdata.o bin/moldata.o bin/dialogue.o bin/options.o bin/bgfield.o bin/matrix.o bin/output.o -o bin/radexi
 
 main.o : src/main.c inc/radexi.h
 	gcc -Wall -Wextra -pedantic -I./inc -c src/main.c -o bin/main.o
@@ -21,6 +21,9 @@ bgfield.o : src/bgfield.c inc/radexi.h inc/linenoise.h
 
 matrix.o : src/matrix.c inc/radexi.h inc/linenoise.h
 	gcc -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas -c src/matrix.c -o bin/matrix.o
+
+output.o : src/matrix.c inc/radexi.h inc/linenoise.h
+	gcc -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas -c src/output.c -o bin/output.o
 
 linenoise.o : src/linenoise.c inc/linenoise.h
 	gcc -Wall -Wextra -pedantic -I./inc -c src/linenoise.c -o bin/linenoise.o

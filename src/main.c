@@ -39,37 +39,49 @@ const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
 
 const double fk   = hP * sol / kB;
 
+struct rxi_options rxi_opts;
+
 int
 main (int argc, char **argv)
 {
   struct rxi_input inp;
-  struct rxi_options rx_opts;
-
   float sf, ef;
-  int pathindex = set_rxi_options (&rx_opts, argc, argv);
 
-  if (rx_opts.usage_mode == UM_DIALOGUE)
+  int pathindex = set_rxi_options (&rxi_opts, argc, argv);
+
+  if (rxi_opts.usage_mode == UM_DIALOGUE)
     {
-      start_dialogue (&sf, &ef, &inp, &rx_opts);
-      printf ("reading info file...\n");
+      int check_path = check_result_path (rxi_opts.result_path);
+      if (check_path < 0)
+        {
+          printf (BMAG  "  ## " reset
+                  WHT   "Wrong path for result file" reset "\n");
+          exit (EXIT_SUCCESS);
+        }
+      start_dialogue (&sf, &ef, &inp);
+
       read_info_file (&inp);
-      printf ("allocating space for rxi_data...\n");
+
       struct rxi_data *rxi = rxi_data_calloc (&inp);
-      printf ("reading data...\n");
+
       read_data (rxi);
-      printf ("calculating background field...\n");
+
       calculate_bg_field (rxi);
-      printf ("making main calculations...\n");
+
       main_calculations (rxi);
-      printf ("free rxi_data\n");
+
+      calculate_results (sf, ef, rxi);
+
+      write_results (rxi, rxi_opts.result_path);
+
       rxi_data_free (rxi);
     }
-  else if (rx_opts.usage_mode == UM_FILE)
+  else if (rxi_opts.usage_mode == UM_FILE)
     {
     }
   else
     {
-      operate_molecular_files (argv[pathindex], &rx_opts);
+      operate_molecular_files (argv[pathindex]);
     }
 
 	exit (EXIT_SUCCESS);
