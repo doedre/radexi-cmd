@@ -47,8 +47,8 @@ write_csv  (FILE *molfile, const char *mol_name, const char *outfile_suf)
   line = (char *) malloc (n);
 
   char *csv_name;
-  csv_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+16);
-  sprintf  (csv_name, "data/%s/%s.csv", mol_name, outfile_suf);
+  csv_name = (char *) malloc (PATH_MAX);
+  sprintf (csv_name, "%s/data/%s/%s.csv", radexi_path, mol_name, outfile_suf);
 
   FILE *csv = fopen (csv_name, "w");
   free (csv_name);
@@ -86,35 +86,18 @@ static enum ColPart
 extract_col_partner (char *line)
 {
   enum ColPart result = H2;
-  /* Possible names */
-  unsigned long numof_variants = 12;
-  char *variants[] = { 
-                        " p-h2 ", " para-h2 ", "para h2 ",
-                        " o-h2 ", " ortho-h2 ", "ortho h2 ", 
-                        " h2 ", "-h2 ", " h2-",
-                        " he ", "-he ", "he-" 
-                        }; 
-  for (unsigned long i = 0; i < strlen (line); i++)
-    {
-      if (isalpha (line[i]))
-        line[i] = tolower (line[i]);
-    }
-
-  unsigned long pos = 0;
-  for (; pos < numof_variants; pos++)
-    {
-      if (strstr (line, variants[pos]))
-        break;
-    }
-
-  if (pos < 3)
-    result = PARA_H2;
-  else if (pos < 6)
-    result = ORTHO_H2;
-  else if (pos < 9)
+  if (!strncmp (line, "1", 1))
     result = H2;
-  else if (pos < 12)
+  else if (!strncmp (line, "2", 1))
+    result = PARA_H2;
+  else if (!strncmp (line, "3", 1))
+    result = ORTHO_H2;
+  else if (!strncmp (line, "4", 1))
+    result = HI;
+  else if (!strncmp (line, "5", 1))
     result = He;
+  else if (!strncmp (line, "6", 1))
+    result = HII;
   else 
     result = NO_MOLECULE;
 
@@ -192,9 +175,8 @@ add_molecular_file (char *mol_file_name)
 
   char *folder_name;
   /* The name shouldn't contain more than 15 chars  */
-  folder_name = (char *) malloc (20);
-  strcpy (folder_name, "data/");
-  strcat (folder_name, rxi_opts.molecule_name);
+  folder_name = (char *) malloc (PATH_MAX);
+  sprintf (folder_name, "%s/data/%s", radexi_path, rxi_opts.molecule_name);
 
   /* Create a folder if it doesn't exist  */
   struct stat sb;
@@ -228,7 +210,8 @@ add_molecular_file (char *mol_file_name)
 
   char *molecular_info_file_name;
   molecular_info_file_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE*2+10);
-  sprintf (molecular_info_file_name, "data/%s/%s.info", 
+  sprintf (molecular_info_file_name, "%s/data/%s/%s.info", 
+                                      radexi_path,
                                       rxi_opts.molecule_name, 
                                       rxi_opts.molecule_name);
 

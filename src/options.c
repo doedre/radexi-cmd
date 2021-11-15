@@ -31,9 +31,9 @@
  * ---------------------------------------------------------------------*/
 
 #include <getopt.h>   // getopt_long() defined here
-#include <limits.h>   // CHAR_MAX defined here
 #include <stddef.h>   // NULL defined here
 #include <string.h>
+#include <unistd.h>
 
 #include "radexi.h"
 
@@ -49,19 +49,28 @@ enum
 
 /* Defines long options for usage by getopt_long(). */
 static struct option const long_options[] = {
-  {"add-molecule", required_argument, NULL, ADD_MOLECULE_OPTION},
+  {"add-molecule",  required_argument,  NULL, ADD_MOLECULE_OPTION},
 //  {"list-molecules", no_argument, NULL, LIST_MOLECULES_OPTION},
 //  {"delete-molecule", required_argument, NULL, DELETE_MOLECULE_OPTION},
-  {"log-density", no_argument, NULL, 'L'},
-  {"hz-width", no_argument, NULL, 'H'},
-  {"help", no_argument, NULL, 'h'},
-  {"result", required_argument, NULL, 'r'},
-  {"version", no_argument, NULL, VERSION_OPTION}
+  {"log-density",   no_argument,        NULL, 'L'},
+  {"hz-width",      no_argument,        NULL, 'H'},
+  {"help",          no_argument,        NULL, 'h'},
+  {"result",        required_argument,  NULL, 'r'},
+  {"version",       no_argument,        NULL, VERSION_OPTION}
 };
 
 int
 set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
 {
+  // Making default path to the radexi folder
+  strcat (radexi_path, "/home/");
+  char *username = malloc (32 * sizeof (char));
+  if (!getlogin_r (username, 32))
+    strcat (radexi_path, username);
+  else 
+    return -2;
+  strcat (radexi_path, "/radexi");
+
   set_default_rxi_options (opts);
   int option_index = 0;
   int opt;
@@ -117,7 +126,6 @@ set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
 
         default:
           cmd_usage (RADEXI_FAILURE);
-
         }
     }
   
@@ -136,6 +144,8 @@ set_default_rxi_options (struct rxi_options *opts)
   opts->cmd_output = false;
   opts->dens_log_scale = false;
   opts->hz_width = false;
+  opts->user_defined_out_file_path = false;
+  strcat (opts->result_path, ".");
 }
 
 void 
@@ -143,8 +153,7 @@ cmd_usage (int status)
 {
   if (status != EXIT_SUCCESS) 
     {
-      fprintf (stderr, ("Try '%s --help' for more information.\n"), 
-                PROGRAM_NAME);
+      fprintf (stderr, ("Try '%s --help' for more information.\n"), PROGRAM_NAME);
     }
   else
     {

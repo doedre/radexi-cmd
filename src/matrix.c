@@ -41,8 +41,8 @@ starting_conditions (struct rxi_data *rxi)
 {
   for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
     {
-      unsigned int u = rxi->rad_transfer[i].ulev;
-      unsigned int l = rxi->rad_transfer[i].llev;
+      const unsigned int u = rxi->rad_transfer[i].ulev;
+      const unsigned int l = rxi->rad_transfer[i].llev;
 
       float coef = hP * sol / kB * rxi->rad_transfer[i].xnu / rxi->mc.Tbg;
       if (coef >= 160)
@@ -127,8 +127,8 @@ refresh_starting_conditions (struct rxi_data *rxi)
   int thick_lines = 0;
   for (unsigned int i = 0; i < rxi->mi.numof_radtr; i++)
     {
-      unsigned int u = rxi->rad_transfer[i].ulev;
-      unsigned int l = rxi->rad_transfer[i].llev;
+      const unsigned int u = rxi->rad_transfer[i].ulev;
+      const unsigned int l = rxi->rad_transfer[i].llev;
       const double xt = pow (rxi->rad_transfer[i].xnu, 3);
 
       rxi->res.tau[i] =                                                       \
@@ -186,14 +186,12 @@ main_calculations (struct rxi_data *rxi)
   do 
     {
       gsl_matrix_set_all (rxi->res.rates, -1e-30 * rxi->mc.total_density);
-      printf ("--making %u iteration...\n", iter);
       if (iter == 0)
         starting_conditions (rxi);
       else 
         thick_lines = refresh_starting_conditions (rxi);
 
       stop_condition = 0;
-      printf ("--correcting rates for collisional rates...\n");
       // Correct rates for collisional rates
       for (unsigned int i = 0; i < rxi->n_el; i++)
         {
@@ -213,29 +211,23 @@ main_calculations (struct rxi_data *rxi)
             }
         }
 
-      printf ("--solving equations...\n");
       gsl_vector_set_all (b, 0);
       gsl_vector_set (b, b->size - 1, 1);
       for (unsigned int i = 0; i <= rxi->n_el; i++)
         gsl_matrix_set (rxi->res.rates, rxi->res.rates->size1 - 1, i, 1);
 
-      printf ("[%lu][%lu] on [%lu]\n", rxi->res.rates->size1, rxi->res.rates->size2, b->size);
       gsl_linalg_HH_svx (rxi->res.rates, b);
 
       // Calculating total population
-      printf ("--calculating total population...\n");
       double total_pop = 0;
       for (unsigned int i = 0; i < rxi->n_el; i++)
         total_pop += gsl_vector_get (b, i);
-
-      printf ("total pop: %.2e\n", total_pop);
 
       /* Keep old populations for underrelaxation */
       if (iter != 0)
         gsl_vector_memcpy (prev_pop, rxi->res.pop);
 
       /* Store new level populations  */
-      printf ("--store new level populations...\n");
       for (unsigned int i = 0; i < rxi->n_el; i++)
         {
           const double new_pop_i = gsl_vector_get (b, i) / total_pop;
@@ -244,16 +236,12 @@ main_calculations (struct rxi_data *rxi)
                           i,
                           (fabs (new_pop_i) > 1e-20) ? fabs (new_pop_i) : 1e-20);
         }
-/*
-      printf ("pop=\n");
-      gsl_vector_fprintf (stdout, rxi->res.pop, "%2.3e");
-*/
+
       /* Calculating excitation temperatures for lines  */
-      printf ("--calculating excitation temperatures...\n");
       for (unsigned int i = 0; i < rxi->n_rt; i++)
         {
-          unsigned int u = rxi->rad_transfer[i].ulev;
-          unsigned int l = rxi->rad_transfer[i].llev;
+          const unsigned int u = rxi->rad_transfer[i].ulev;
+          const unsigned int l = rxi->rad_transfer[i].llev;
 
           const double new_Tex_i =                              \
                       fk * rxi->rad_transfer[i].xnu /           \
@@ -287,7 +275,6 @@ main_calculations (struct rxi_data *rxi)
         }
 
       /* Doing underrelaxation  */
-      printf ("--doing underrelaxation...\n");
       if (iter != 0)
         for (unsigned int i = 0; i < rxi->n_el; i++)
           {
@@ -296,14 +283,7 @@ main_calculations (struct rxi_data *rxi)
                         0.7 * gsl_vector_get (prev_pop, i);
             gsl_vector_set (rxi->res.pop, i, new_pop_i);
           }
-      printf ("Tex=\n");
-      for (unsigned int i = 0; i < rxi->n_rt; i++)
-        {
-          printf ("%d -> %d: population %.3e; Tex %5.3f; tau %5.3e \n", rxi->rad_transfer[i].ulev, rxi->rad_transfer[i].llev, gsl_vector_get (rxi->res.pop, i), gsl_vector_get (rxi->res.Tex, i), rxi->res.tau[i]);
-        }
-
       iter++;
-      printf ("\n thick_lines = %d, stop_condition = %.3e\n", thick_lines, stop_condition);
     } while (thick_lines != 0 && stop_condition >= 1e-6);
 
   gsl_vector_free (prev_pop);
@@ -315,11 +295,11 @@ calculate_results (const float sf, const float ef, struct rxi_data *rxi)
 {
   for (unsigned int i = 0; i < rxi->n_rt; i++)
     {
-      float freq = rxi->rad_transfer[i].spfreq;
-      if ((freq < sf) && (freq > ef))
+      const float freq = rxi->rad_transfer[i].spfreq;
+      if ((freq < sf) || (freq > ef))
         continue;
 
-      double xt = pow (rxi->rad_transfer[i].xnu, 3);
+      const double xt = pow (rxi->rad_transfer[i].xnu, 3);
 
       // Calculating source function 
       const double hnu = fk * rxi->rad_transfer[i].xnu / gsl_vector_get (rxi->res.Tex, i);

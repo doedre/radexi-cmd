@@ -43,8 +43,8 @@ int
 read_info_file (struct rxi_input *inp)
 {
   char *mi_path;
-  mi_path = (char *) malloc (2*RXI_MOLECULE_MAX_SIZE + 12);
-  sprintf (mi_path, "data/%s/%s.info", inp->name, inp->name);
+  mi_path = (char *) malloc (PATH_MAX);
+  sprintf (mi_path, "%s/data/%s/%s.info", radexi_path, inp->name, inp->name);
   FILE *mi = fopen (mi_path, "r");
   free (mi_path);
 
@@ -187,8 +187,8 @@ static int
 reading_enlev (struct rxi_data *rxi)
 {
   char *el_path;
-  el_path = (char *) malloc (RXI_MOLECULE_MAX_SIZE + 16);
-  sprintf (el_path, "data/%s/enlev.csv", rxi->mi.name);
+  el_path = (char *) malloc (PATH_MAX);
+  sprintf (el_path, "%s/data/%s/enlev.csv", radexi_path, rxi->mi.name);
   FILE *enlev_file = fopen (el_path, "r");
   free (el_path);
 
@@ -232,8 +232,8 @@ static int
 reading_radtr (struct rxi_data *rxi)
 {
   char *rt_path;
-  rt_path = (char *) malloc (RXI_MOLECULE_MAX_SIZE + 16);
-  sprintf (rt_path, "data/%s/radtr.csv", rxi->mi.name);
+  rt_path = (char *) malloc (PATH_MAX);
+  sprintf (rt_path, "%s/data/%s/radtr.csv", radexi_path, rxi->mi.name);
   FILE *radtr_file = fopen (rt_path, "r");
   free (rt_path);
 
@@ -301,7 +301,7 @@ reading_colpart (struct rxi_data *rxi)
       char *cp_name = (char *) malloc (RXI_MOLECULE_MAX_SIZE);
 
       conv_int_to_name (rxi->coll_partner[icp].name, cp_name);
-      sprintf (cp_path, "data/%s/%s.csv", rxi->mi.name, cp_name);
+      sprintf (cp_path, "%s/data/%s/%s.csv", radexi_path, rxi->mi.name, cp_name);
       FILE *cp_file = fopen (cp_path, "r");
       free (cp_path);
       free (cp_name);
@@ -372,25 +372,13 @@ reading_colpart (struct rxi_data *rxi)
 static int 
 prepare_for_calculation (struct rxi_data *rxi)
 {
-  printf ("----making collision rate matrix\n");
   for (unsigned int cp = 0; cp < rxi->mc.numof_colpart; cp++)
     {
       rxi->mc.total_density += rxi->coll_partner[cp].dens;
-/*
-      for (unsigned int i = 1; i <= rxi->n_el; i++)
-        for (unsigned int j = 1; j <= rxi->n_el; j++)
-          {
-            double crate = rxi->coll_partner[cp].dens * \
-                           gsl_matrix_get (rxi->coll_partner[cp].K, i, j);
-
-            gsl_matrix_set (rxi->mi.C, i, j, crate);
-          }
-          */
       gsl_matrix_scale (rxi->coll_partner[cp].K, rxi->coll_partner[cp].dens);
       gsl_matrix_add (rxi->mi.C, rxi->coll_partner[cp].K);
     }
 
-  printf ("----recalculating it's coefficients by statistical balance\n");
   for (unsigned int i = 0; i < rxi->n_el; i++)
     {
       for (unsigned int j = 0; j < rxi->n_el; j++)
@@ -415,7 +403,6 @@ prepare_for_calculation (struct rxi_data *rxi)
         }
     }
 
-  printf ("----conventing collisional rate matrix(not matching with radex but should)\n");
   for (unsigned int i = 0; i < rxi->n_el; i++)
     {
       gsl_vector *conv = gsl_vector_alloc (rxi->n_el + 1);
@@ -430,13 +417,9 @@ prepare_for_calculation (struct rxi_data *rxi)
 int
 read_data (struct rxi_data *rxi)
 {
-  printf ("--reading energy levels...\n");
   reading_enlev (rxi);
-  printf ("--reading radiative transitions...\n");
   reading_radtr (rxi);
-  printf ("--reading collision partners...\n");
   reading_colpart (rxi);
-  printf ("--preparing for calculations...\n");
   prepare_for_calculation (rxi);
   return 0;
 }

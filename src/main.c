@@ -40,6 +40,7 @@ const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
 const double fk   = hP * sol / kB;
 
 struct rxi_options rxi_opts;
+char radexi_path[PATH_MAX];
 
 int
 main (int argc, char **argv)
@@ -48,15 +49,21 @@ main (int argc, char **argv)
   float sf, ef;
 
   int pathindex = set_rxi_options (&rxi_opts, argc, argv);
+  // If can't write default radexi path
+  if (pathindex == -2)
+    exit (EXIT_FAILURE);
 
   if (rxi_opts.usage_mode == UM_DIALOGUE)
     {
-      int check_path = check_result_path (rxi_opts.result_path);
-      if (check_path < 0)
+      if (rxi_opts.user_defined_out_file_path)
         {
-          printf (BMAG  "  ## " reset
-                  WHT   "Wrong path for result file" reset "\n");
-          exit (EXIT_SUCCESS);
+          int check_path = check_result_path (rxi_opts.result_path);
+          if (check_path < 0)
+            {
+              printf (BMAG  "  ## " reset
+                      WHT   "Wrong path for result file" reset "\n");
+              exit (EXIT_SUCCESS);
+            }
         }
       start_dialogue (&sf, &ef, &inp);
 
@@ -72,7 +79,7 @@ main (int argc, char **argv)
 
       calculate_results (sf, ef, rxi);
 
-      write_results (rxi, rxi_opts.result_path);
+      write_results (sf, ef, rxi, rxi_opts.result_path);
 
       rxi_data_free (rxi);
     }

@@ -48,7 +48,6 @@
 int
 check_result_path (const char *result_path)
 {
-  printf ("--stat check for %s...\n", result_path);
   struct stat sb;
   stat(result_path, &sb);
 
@@ -80,7 +79,6 @@ check_result_path (const char *result_path)
       return 2;
     }
 
-  printf ("--opening new file...\n");
   FILE *check;
   check = fopen (result_path, "w");
   if (check)
@@ -101,7 +99,7 @@ check_result_path (const char *result_path)
  * - -2 on rxi_data problems
  */
 int
-write_results(const struct rxi_data *rxi, const char *result_path)
+write_results (const float sf, const float ef, const struct rxi_data *rxi, const char *result_path)
 {
   struct stat sb;
   stat(result_path, &sb);
@@ -136,15 +134,19 @@ write_results(const struct rxi_data *rxi, const char *result_path)
       fprintf (result_file, "* Density of %9s[cm-3] : %.3e\n", cp_name, rxi->mc.cp[i].dens);
     }
 
-  fprintf (result_file,     "*    LINE       E_UP          FREQ         WAVEL        T_EX        TAU        \
-      T_R        POP        POP       FLUX       FLUX\n");
-  fprintf (result_file,     "*                [K]         [GHz]          [nm]         [K]                   \
-      [K]         UP        LOW   [K km/s]  [erg cm-2 s-1]\n");
+  fprintf (result_file,     "*    LINE       E_UP          FREQ         WAVEL        T_EX         TAU   \
+      T_R         POP         POP        FLUX        FLUX\n");
+  fprintf (result_file,     "*                [K]         [GHz]          [nm]         [K]               \
+      [K]          UP         LOW    [K km/s]  [erg cm-2 s-1]\n");
   char line_format[120];
-  strcpy (line_format, "%3d -> %3d  %8.1f  %12.4f  %12.4f  %10.3f  %.3e  %.3e  %.3e  %.3e  %.3e  %.3e\n");
+  strcpy (line_format, "%3d -> %3d  %8.1f  %12.4f  %12.4f  %10.3f  %10.3e  %10.3e  %10.3e  %10.3e  %10.3e  %10.3e\n");
   for (unsigned int i = 0; i < rxi->n_rt; i++)
     {
-      double xt = pow (rxi->rad_transfer[i].xnu, 3);
+      const float freq = rxi->rad_transfer[i].spfreq;
+      if ((freq < sf) || (freq > ef))
+        continue;
+
+      const double xt = pow (rxi->rad_transfer[i].xnu, 3);
       fprintf (result_file, line_format, rxi->rad_transfer[i].ulev, rxi->rad_transfer[i].llev, 
                                          rxi->rad_transfer[i].enup, 
                                          rxi->rad_transfer[i].spfreq, 

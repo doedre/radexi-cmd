@@ -129,14 +129,11 @@ get_molecule_name (DIR *dir, char *name)
       if (strncmp (ent->d_name, ".", 1) == 0)
         return -1;
 
-      /* Write full path to the folder/file to get information about it */
-      char fpath[256];
-      strcpy (fpath, PROGRAM_PATH);
-      strcat (fpath, "/");
-      strcat (fpath, ent->d_name);
-
       /* Check if current path belongs to the folder  */
-      stat (fpath, &sb);
+      char *path = malloc (PATH_MAX * sizeof (char*));
+      sprintf (path, "%s/data/%s", radexi_path, ent->d_name);
+      stat (path, &sb);
+      free (path);
       if (S_ISDIR (sb.st_mode))
         strncpy (name, ent->d_name, RXI_MOLECULE_MAX_SIZE);
       else 
@@ -148,13 +145,64 @@ get_molecule_name (DIR *dir, char *name)
   return 1;
 }
 
+void
+get_collision_partners (int *cps, int *size, const struct rxi_input *inp)
+{
+  DIR *dir;
+  struct dirent *ent;
+  struct stat sb;
+  int i = 0;
+  char *path = malloc (PATH_MAX * sizeof (char*));
+  sprintf (path, "%s/data/%s", radexi_path, inp->name);
+  if ((dir = opendir (path)) != NULL)
+    {
+      while ((ent = readdir (dir)) != NULL)
+        {
+          /* Skips folders starting at '.'  */
+          if (strncmp (ent->d_name, ".", 1) == 0)
+            continue;
+
+          /* Check if current path belongs to the folder  */
+          stat (ent->d_name, &sb);
+          if (S_ISDIR (sb.st_mode))
+            continue;
+
+          if (!strcmp (ent->d_name, "H2.csv"))
+            cps[i] = H2;
+          else if (!strcmp (ent->d_name, "pH2.csv"))
+            cps[i] = PARA_H2;
+          else if (!strcmp (ent->d_name, "oH2.csv"))
+            cps[i] = ORTHO_H2;
+          else if (!strcmp (ent->d_name, "electrons.csv"))
+            cps[i] = ELECTRONS;
+          else if (!strcmp (ent->d_name, "HI.csv"))
+            cps[i] = HI;
+          else if (!strcmp (ent->d_name, "He.csv"))
+            cps[i] = He;
+          else if (!strcmp (ent->d_name, "HII.csv"))
+            cps[i] = HII;
+          else
+            continue;
+
+          i++;
+        }
+      free (ent);
+    }
+  free (dir);
+  free (path);
+  *size = i;
+}
+
 /* Add all names and exceptions if no molecule was added  */
 static void
 molecules_completion (const char *buf, linenoiseCompletions *lc)
 {
   DIR *dir;
   char *mname = malloc (RXI_MOLECULE_MAX_SIZE * sizeof (char));
-  if ((dir = opendir (PROGRAM_PATH)) != NULL)
+
+  char *path = malloc (PATH_MAX * sizeof (char*));
+  sprintf (path, "%s/data", radexi_path);
+  if ((dir = opendir (path)) != NULL)
     { 
       for (int p = get_molecule_name (dir, mname); 
            p;
@@ -165,6 +213,7 @@ molecules_completion (const char *buf, linenoiseCompletions *lc)
         }
     }
   free (dir);
+  free (path);
   free (mname);
 }
 
@@ -209,17 +258,23 @@ isAllowedMolecule (const char *str)
   bool res = false;
   DIR *dir;
   char *mname = malloc (RXI_MOLECULE_MAX_SIZE * sizeof (char));
-  if ((dir = opendir (PROGRAM_PATH)) != NULL)
+  char *path = malloc (PATH_MAX * sizeof (char*));
+  sprintf (path, "%s/data", radexi_path);
+  if ((dir = opendir (path)) != NULL)
     { 
       for (int p = get_molecule_name (dir, mname); 
            p;
-           p = get_molecule_name(dir, mname))
+           p = get_molecule_name (dir, mname))
         {
           if (p > 0 && !strcmp (str, mname))
-            res = true;
+            {
+              res = true;
+              break;
+            }
         }
     }
   free (dir);
+  free (path);
   free (mname);
   return res;
 }
@@ -230,8 +285,11 @@ enter_molecule (char *name)
 {
   char *line;
   line = (char *) malloc (RXI_MOLECULE_MAX_SIZE);
+  char path[PATH_MAX];
+  strcat (path, radexi_path);
+  strcat (path, "/history/molecules");
   linenoiseSetCompletionCallback (molecules_completion);
-  linenoiseHistoryLoad (".molecules");
+  linenoiseHistoryLoad (path);
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
@@ -239,7 +297,7 @@ enter_molecule (char *name)
         {
           strncpy (name, line, RXI_MOLECULE_MAX_SIZE);
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (".molecules");
+          linenoiseHistorySave (path);
           break;
         }
       else if (!strcmp (line, "list"))
@@ -305,14 +363,18 @@ enter_frequencies (float *sf, float *ef)
   size_t size = 15;
   char *line;
   line = (char *) malloc (size);
-  linenoiseHistoryLoad (".frequencies");
+  char path[PATH_MAX];
+  strcat (path, radexi_path);
+  strcat (path, "/history/frequencies");
+
+  linenoiseHistoryLoad (path);
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
       if (isAllowedFrequencies (line, sf, ef))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (".frequencies");
+          linenoiseHistorySave (path);
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -350,8 +412,7 @@ isAllowedTemp (const char *str,
 /* Casts str to float and checks if it's of the correct column density range. 
  * Also works w/ -L flag. */
 static bool
-isAllowedColdens (const char *str, 
-                  double *val)
+isAllowedColdens (const char *str, double *val)
 {
   bool res = false;
   double f = strtod (str, NULL);
@@ -380,8 +441,7 @@ isAllowedColdens (const char *str,
 /* Casts str to float and checks if it's of the correct line widths range. 
  * Also works w/ -H flag. */
 static bool
-isAllowedWidth (const char *str, 
-                double *val)
+isAllowedWidth (const char *str, double *val)
 {
   bool res = false;
   double f = strtod (str, NULL);
@@ -418,7 +478,11 @@ enter_double_parameter (double *par,
   size_t size = 20;
   char *line;
   line = (char *) malloc (size);
-  linenoiseHistoryLoad (history_file);
+  char path[PATH_MAX];
+  strcat (path, radexi_path);
+  strcat (path, "/history/");
+  strcat (path, history_file);
+  linenoiseHistoryLoad (path);
   linenoiseSetCompletionCallback (completion);
   linenoiseSetHintsCallback (hints);
 
@@ -427,7 +491,7 @@ enter_double_parameter (double *par,
       if (isAllowed (line, par))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (history_file);
+          linenoiseHistorySave (path);
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -449,11 +513,11 @@ conv_name_to_int (const char *str)
   enum ColPart res = He;
   if (!strncmp (str, "H2", 2) || !strncmp (str, "h2", 2))
     res = H2;
-  else if (!strncmp (str, "PARA_H2", 7) || !strncmp (str, "para_h2", 7))
+  else if (!strncmp (str, "PH2", 3) || !strncmp (str, "ph2", 3))
     res = PARA_H2;
-  else if (!strncmp (str, "ORTHO_H2", 8) || !strncmp (str, "ortho_h2", 8))
+  else if (!strncmp (str, "OH2", 3) || !strncmp (str, "oh2", 3))
     res = ORTHO_H2;
-  else if (!strncmp (str, "ELECTRONS", 9) || !strncmp (str, "electrons", 9))
+  else if (!strncmp (str, "E", 1) || !strncmp (str, "e", 1))
     res = ELECTRONS;
   else if (!strncmp (str, "HI", 2) || !strncmp (str, "hi", 2))
     res = HI;
@@ -469,13 +533,15 @@ conv_name_to_int (const char *str)
 
 /* Parses a line to get collision partner's name and it's volume density. */
 static bool
-isAllowedCps (const char *str, 
-              struct rxi_input *inp)
+isAllowedCps (const char *str, struct rxi_input *inp)
 {
   bool res = true;
   char *storage;
   storage = (char *) malloc (40);
   strcpy (storage, str);
+  int partners[RXI_MAX_COLL_PARTNERS];
+  int size;
+  get_collision_partners (partners, &size, inp);
 
   /* Parse line and then cast its containments by different molecules  */
   int numof_cps = 0;
@@ -494,6 +560,17 @@ isAllowedCps (const char *str,
             {
               inp->cps[numof_cps].name = conv_name_to_int (t);
               if (inp->cps[numof_cps].name == NO_MOLECULE)
+                res = false;
+
+              bool contained = false;
+              for (int i = 0; i < size; i++)
+                if ((int)inp->cps[numof_cps].name == partners[i])
+                  {
+                    contained = true;
+                    break;
+                  }
+
+              if (!contained)
                 res = false;
             }
           else if (numof_t == 1)
@@ -529,20 +606,22 @@ isAllowedCps (const char *str,
 
 /* Equal to the enter_float(), but used for collision partner's retrieval.  */
 static void
-enter_collision_partners (struct rxi_input *inp,
-                          int fail_state)
+enter_collision_partners (struct rxi_input *inp, int fail_state)
 {
   size_t size = 30;
   char *line;
   line = (char *) malloc (size);
-  linenoiseHistoryLoad (".colpartners");
+  char path[PATH_MAX];
+  strcat (path, radexi_path);
+  strcat (path, "/history/colpartners");
+  linenoiseHistoryLoad (path);
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
       if (isAllowedCps (line, inp))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (".colpartners");
+          linenoiseHistorySave (path);
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -580,21 +659,23 @@ bool isAllowedGeometry (const char *line, struct rxi_input *inp)
 }
 
 void 
-enter_geometry (struct rxi_input *inp, 
-                int fail_state)
+enter_geometry (struct rxi_input *inp, int fail_state)
 {
   size_t size = 10;
   char *line;
   line = (char *) malloc (size);
+  char path[PATH_MAX];
+  strcat (path, radexi_path);
+  strcat (path, "/history/geometry");
   linenoiseSetCompletionCallback (geometry_completion);
-  linenoiseHistoryLoad (".geometry");
+  linenoiseHistoryLoad (path);
 
   while ((line = linenoise ("  >> ")) != NULL)
     {
       if (isAllowedGeometry (line, inp))
         {
           linenoiseHistoryAdd (line);
-          linenoiseHistorySave (".geometry");
+          linenoiseHistorySave (path);
           break;
         }
       else if (!strcmp (line, "quit"))
@@ -611,9 +692,7 @@ enter_geometry (struct rxi_input *inp,
 
 /* This function is called by the main() for parameters entering. */
 void
-start_dialogue (float *sfreq, 
-                float *efreq, 
-                struct rxi_input *inp)
+start_dialogue (float *sfreq, float *efreq, struct rxi_input *inp)
 {
   if (!rxi_opts.quite_start)
     {
@@ -641,7 +720,7 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->Tkin, 
                           TKIN_FAIL, 
-                          ".Tkin", 
+                          "Tkin", 
                           NULL, 
                           hints_temp, 
                           isAllowedTemp);
@@ -652,7 +731,7 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->Tbg, 
                           TBG_FAIL, 
-                          ".Tbg", 
+                          "Tbg", 
                           NULL, 
                           hints_temp, 
                           isAllowedTemp);
@@ -663,7 +742,7 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->coldens, 
                           COLDENS_FAIL, 
-                          ".coldens",
+                          "coldens",
                           NULL, 
                           NULL, 
                           isAllowedColdens);
@@ -677,7 +756,7 @@ start_dialogue (float *sfreq,
 
   enter_double_parameter (&inp->fwhm, 
                           FWHM_FAIL, 
-                          ".fwhm",
+                          "fwhm",
                           NULL, 
                           NULL, 
                           isAllowedWidth);
