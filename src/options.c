@@ -122,6 +122,7 @@ set_rxi_options (struct rxi_options *opts, int argc, char ** argv)
           break;
 
         case VERSION_OPTION:
+          cmd_usage (RADEXI_VERSION);
           break;
 
         default:
@@ -151,13 +152,34 @@ set_default_rxi_options (struct rxi_options *opts)
 void 
 cmd_usage (int status)
 {
-  if (status != EXIT_SUCCESS) 
+  if (status == RADEXI_FAILURE) 
     {
       fprintf (stderr, ("Try '%s --help' for more information.\n"), PROGRAM_NAME);
     }
-  else
+  else if (status == RADEXI_VERSION)
     {
-      printf ("--help option is in a maintanence...\n");
+      printf ("radexi v0.1-alpha\n");
+    }
+  else 
+    {
+      printf ("\
+Usage: radexi [options]\n\
+       radexi [molecule-operation-option] <name> <path> \n\
+[options]:\n\
+  -f,                 Forces to overwrite any mentioned file \n\
+  -h, --help          Prints this message \n\
+  -L, --log-density   Allows you to enter densities in logarithmic scale \n\
+  -q,                 Removes starting message \n\
+  -r, --result <path> Writes the output to <path>. If only folder was specified, then \n\
+                      creates <path>/radexi_output.txt file \n\
+[molecule-operation-option]: \n\
+  Only one of the options below may be specified for one usage. Radexi won't do the \n\
+  calculations with them. \n\
+  --add-molecule <name> <path>  Adds molecule with <name> name to the database from \n\
+                                the <path>. Database files should be taken from LAMDA \n\
+\n\
+For any additional information find me at https://github.com/doedre/radexi-cmd. \n"
+          );
     }
 
   exit (status);

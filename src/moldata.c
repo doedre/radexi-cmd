@@ -93,10 +93,12 @@ extract_col_partner (char *line)
   else if (!strncmp (line, "3", 1))
     result = ORTHO_H2;
   else if (!strncmp (line, "4", 1))
-    result = HI;
+    result = ELECTRONS;
   else if (!strncmp (line, "5", 1))
-    result = He;
+    result = HI;
   else if (!strncmp (line, "6", 1))
+    result = He;
+  else if (!strncmp (line, "7", 1))
     result = HII;
   else 
     result = NO_MOLECULE;

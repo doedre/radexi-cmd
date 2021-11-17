@@ -129,7 +129,10 @@ enum
 
   /* Option for major problems, like wrong options usage, incorrect path to the
    * files or even calculation problems.  */
-  RADEXI_FAILURE
+  RADEXI_FAILURE,
+
+  /* Printing radexi version and exit */
+  RADEXI_VERSION
 };
 
 

@@ -690,9 +690,14 @@ enter_geometry (struct rxi_input *inp, int fail_state)
 void
 start_dialogue (float *sfreq, float *efreq, struct rxi_input *inp)
 {
+  // Starting message
   if (!rxi_opts.quite_start)
     {
-      printf ("starting message here\n");
+      printf ("\
+Radexi v0.1-alpha. An attempt to make RADEX more versatile. Not stable in the current version. Results very\n\
+frequently vary from the original RADEX. And don't forget to make reference to the original publication\n\
+A&A 468, 627 (2007). \n\
+I DON'T GUARANTEE OUTPUT BEING THE SAME WITH RADEX!!!\n");
     }
 
   linenoiseHistorySetMaxLen (10);
