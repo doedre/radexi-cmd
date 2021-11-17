@@ -9,12 +9,12 @@ Remember that when you use either official RADEX or radexi-cmd -- always refer t
 
 #### Dependencies
 In order to download and install `radexi-cmd` you'll need
-- git
 - gcc
 - make
-- curl
 - gsl
-
+- git (optional)
+- curl (optional)
+ 
 Install them with your packet manager.
 
 #### Proceed with installation
@@ -32,21 +32,22 @@ $ git clone https://github.com/doedre/radexi-cmd.git -b release/*
 $ cd radexi-cmd
 ``` 
 
-Finally we can build this package
+If you don't have git you may download any of the release archives from this link. Just download it and unpack in any directory you want. 
+Finally we can build this package either with the specified `build.sh` script or manually. If you want to use script, enter the program's directory and run it
 
 ``` bash
-$ make 
+$ cd radexi-cmd
+$ ./build.sh
 ``` 
-
 #### Result of the installation
-New folder called `radexi` should appear in your `$(HOME)` directory. Here the program stores generated databases for molecules, settings and results of the calculations if no path was specified. 
+New folder called `radexi` should appear in your `$(HOME)` directory. Here the program stores generated databases for molecules and settings. The executable called `radexi` is also stored here.
 
-In order to use the program freely you should create your local `bin` directory (or use `/usr/local/bin` or anything if you know how it works) and store the executable here. If you followed the guide, here how it should be done:
+In order to use the program freely you should create your local `bin` directory (or use `/usr/local/bin` or anything if you know how it works) and store the executable here
 
 ```bash
 $ mkdir $HOME/bin
-$ cp $HOME/build/bin/radexi $HOME/bin/
-$ echo "set PATH=($PATH $HOME/bin)" >> $HOME/.bashrc
+$ cp $HOME/radexi/radexi $HOME/bin/
+$ echo "export PATH=$PATH:$HOME/bin" >> $HOME/.bashrc
 ```
 
 Now you'll be able to execute `radexi` from terminal. Check it with
@@ -58,7 +59,7 @@ $ radexi --version
 If you see no errors then all was installed correctly.
 
 ## Usage
-Here I will describe the most common examples of usage. If you want to know more features follow the full usage guide (~ minutes).
+Here I will describe the most common usage examples. Text enclosed in < > should be changed with your parameters. If you want to know more features follow the full usage guide (~ minutes).
 
 ##### Running the dialogue 
 
@@ -68,26 +69,28 @@ $ radexi
 
 ##### Adding molecule to the database
 In order to use any molecule from LAMDA database you can add it to `radexi`'s local database
-you
+
 ```bash
-$ radexi --add-molecule <𝘯𝘢𝘮𝘦> <𝘱𝘢𝘵𝘩 𝘵𝘰 𝘵𝘩𝘦 𝘥𝘢𝘵𝘢𝘣𝘢𝘴𝘦 𝘧𝘪𝘭𝘦>
+$ radexi --add-molecule <name> <path to the database file>
 ```
 
-So if you want to add methanol molecule and call it *my_favourite_one* type this
+So if you want to add methanol molecule and call it *my_favourite_one*
 
 ```bash
-$ radexi --add-molecule my_favourite_one 𝘱𝘢𝘵𝘩/𝘵𝘰/𝘵𝘩𝘦/𝘧𝘪𝘭𝘦/ch3oh.dat
+$ radexi --add-molecule my_favourite_one <path to the file>/ch3oh.dat
 ```
 
 ##### Using input files
-`-r` flag specifies the location and name of the output file (if no name was specified it generates it's own). Without this flag output will be stored in `$HOME/radexi/results/`.
+The `-r` (or `--result`) flag specifies the location of the output file.
 
 ```bash
-$ radexi 𝘱𝘢𝘵𝘩/𝘵𝘰/𝘵𝘩𝘦/𝘧𝘪𝘭𝘦/file -r 𝘰𝘵𝘩𝘦𝘳/𝘱𝘢𝘵𝘩/result.txt
+$ radexi -r <path>/result.txt
 ```
 
+If no path given, results will be stored in the current directory in `radexi_output.txt`. The same file is created if you've only specified the folder. 
 ---
 # Full guide
+Will appear 
 ## Notes on the installation
 ## Usage
 ### Starting guide
