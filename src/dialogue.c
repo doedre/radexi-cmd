@@ -3,8 +3,7 @@
  * Contains realisations for functions, needed in dialogue w/ the user. Primary
  * goal is to collect all the needed info for calculations w/o troubles.
  *
- * ----------------------------------------------------------------------
- *
+ * ---------------------------------------------------------------------- *
  * This file is part of the radexi-cmd program - C language implementation of 
  * RADEX software package. It is used to calculate molecular exitation and 
  * radiative transfer in a homogenuous medium. The purpose of this full 
@@ -285,9 +284,8 @@ enter_molecule (char *name)
 {
   char *line;
   line = (char *) malloc (RXI_MOLECULE_MAX_SIZE);
-  char path[PATH_MAX];
-  strcat (path, radexi_path);
-  strcat (path, "/history/molecules");
+  char *path = malloc (PATH_MAX * sizeof (char*));
+  sprintf (path, "%s/history/molecules", radexi_path);
   linenoiseSetCompletionCallback (molecules_completion);
   linenoiseHistoryLoad (path);
 
@@ -315,6 +313,7 @@ enter_molecule (char *name)
           
       free (line);
     }
+  free (path);
 }
 
 /* Parses user's input and fills starting & ending frequencies. Returns 'true'
@@ -363,10 +362,8 @@ enter_frequencies (float *sf, float *ef)
   size_t size = 15;
   char *line;
   line = (char *) malloc (size);
-  char path[PATH_MAX];
-  strcat (path, radexi_path);
-  strcat (path, "/history/frequencies");
-
+  char *path = malloc (PATH_MAX * sizeof (char*));
+  sprintf (path, "%s/history/freqs", radexi_path);
   linenoiseHistoryLoad (path);
 
   while ((line = linenoise ("  >> ")) != NULL)
@@ -387,9 +384,9 @@ enter_frequencies (float *sf, float *ef)
         } 
       free (line);
     }
+  free (path);
 }
    
-
 /* Casts str to float and checks if it's of the correct range. */
 static bool 
 isAllowedTemp (const char *str, 
@@ -478,10 +475,8 @@ enter_double_parameter (double *par,
   size_t size = 20;
   char *line;
   line = (char *) malloc (size);
-  char path[PATH_MAX];
-  strcat (path, radexi_path);
-  strcat (path, "/history/");
-  strcat (path, history_file);
+  char *path = malloc (PATH_MAX * sizeof (char*));
+  sprintf (path, "%s/history/%s", radexi_path, history_file);
   linenoiseHistoryLoad (path);
   linenoiseSetCompletionCallback (completion);
   linenoiseSetHintsCallback (hints);
@@ -504,6 +499,7 @@ enter_double_parameter (double *par,
         } 
       free (line);
     }
+  free (path);
 }
 
 /* Converts collision partner's name into a number (or ColPartner enum).  */
@@ -611,9 +607,8 @@ enter_collision_partners (struct rxi_input *inp, int fail_state)
   size_t size = 30;
   char *line;
   line = (char *) malloc (size);
-  char path[PATH_MAX];
-  strcat (path, radexi_path);
-  strcat (path, "/history/colpartners");
+  char *path = malloc (PATH_MAX * sizeof (char *));
+  sprintf (path, "%s/history/colpartners", radexi_path);
   linenoiseHistoryLoad (path);
 
   while ((line = linenoise ("  >> ")) != NULL)
@@ -634,6 +629,7 @@ enter_collision_partners (struct rxi_input *inp, int fail_state)
         } 
       free (line);
     }
+  free (path);
 }
 
 bool isAllowedGeometry (const char *line, struct rxi_input *inp)
@@ -664,9 +660,8 @@ enter_geometry (struct rxi_input *inp, int fail_state)
   size_t size = 10;
   char *line;
   line = (char *) malloc (size);
-  char path[PATH_MAX];
-  strcat (path, radexi_path);
-  strcat (path, "/history/geometry");
+  char *path = malloc (PATH_MAX * sizeof (char *));
+  sprintf (path, "%s/history/geom", radexi_path);
   linenoiseSetCompletionCallback (geometry_completion);
   linenoiseHistoryLoad (path);
 
@@ -688,6 +683,7 @@ enter_geometry (struct rxi_input *inp, int fail_state)
         } 
       free (line);
     }
+  free (path);
 }
 
 /* This function is called by the main() for parameters entering. */
