@@ -1,5 +1,21 @@
-# Table of contents
 
+For now the output of the program is not stable and very frequently differs from the original RADEX. Until v1.0 release I would recommend using this program only to introduce yourself to RADEX (you may suggest your features for future releases).
+
+I've made this program in order to improve usage experience of RADEX, which is more of a script than a real program. With this you won't need to recompile RADEX every time you want to experiment with cloud geometries or restart the calculations if you've entered something wrong. Some of the working features:
+- Better dialogue system with history (use arrows) and autocompletion (use TAB);
+- Choose escape probability calculation method as one of the paramaters;
+- Add atoms and molecules with custom names.
+
+In future plans:
+- Make stable library with some kind of API;
+- Being able to use H2 in place of pH2 and oH2 only if the user specifies it (in RADEX it is done automatically and I don't allow it);
+- Improving dialogues 
+- More output options to suit everyone's needs 
+- Speed up calculation time
+- Statistical analysis for your hypothesis on line intensities
+- ...
+
+---
 # Short introductory guide
 `radexi-cmd` is an extension of RADEX computer program, which is used for atomic and molecular lines strength calculation. You can read about the original program on it's [official page](https://personal.sron.nl/~vdtak/radex/index.shtml) and you may even try to use it's [online variant](http://var.sron.nl/radex/radex.php). I also provided some information about it below, but fell free to correct me if im wrong.
 
@@ -80,7 +96,7 @@ So if you want to add methanol molecule and call it *my_favourite_one*
 $ radexi --add-molecule my_favourite_one <path to the file>/ch3oh.dat
 ```
 
-##### Using input files
+##### Using output files
 The `-r` (or `--result`) flag specifies the location of the output file.
 
 ```bash
@@ -88,19 +104,15 @@ $ radexi -r <path>/result.txt
 ```
 
 If no path given, results will be stored in the current directory in `radexi_output.txt`. The same file is created if you've only specified the folder. 
+
 ---
 # Full guide
 Will appear 
-## Notes on the installation
-## Usage
-### Starting guide
-## When you should use RADEX
-
-# For interested in this program
-### How to report a bug
-### How to ask for adding/suggesting a new feature
-### How to contribute
-## My thanks
 ## Plans for future releases
-
+v0.2-alpha:
+- Ability to read input files
+- Download database files directly from LAMDA
+- Improve dialogue system
+- Add logs and correct output on internal errors
+- Verbose console output
 # References
