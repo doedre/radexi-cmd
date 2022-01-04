@@ -30,66 +30,19 @@
  *
  * ---------------------------------------------------------------------*/
 
-#include "radexi.h"
+#include <stdlib.h>
+#include <stdio.h>
 
-/* Physical constants */
-const double sol  = 2.99792458e10;    /* speed of light       [cm s-1]      */
-const double hP   = 6.6260963e-27;    /* Planck's constant    [erg s]       */
-const double kB   = 1.3806505e-16;    /* Boltzman's constant  [erg K-1]     */
-
-const double fk   = hP * sol / kB;
-
-struct rxi_options rxi_opts;
-char radexi_path[PATH_MAX];
+#include "rxi_common.h"
+#include "utils/options.h"
 
 int
 main (int argc, char **argv)
 {
-  struct rxi_input inp;
-  float sf, ef;
+  struct rxi_options opts;
 
-  int pathindex = set_rxi_options (&rxi_opts, argc, argv);
-  // If can't write default radexi path
-  if (pathindex == -2)
-    exit (EXIT_FAILURE);
-
-  if (rxi_opts.usage_mode == UM_DIALOGUE)
-    {
-      if (rxi_opts.user_defined_out_file_path)
-        {
-          int check_path = check_result_path (rxi_opts.result_path);
-          if (check_path < 0)
-            {
-              printf (BMAG  "  ## " reset
-                      WHT   "Wrong path for result file" reset "\n");
-              exit (EXIT_SUCCESS);
-            }
-        }
-      start_dialogue (&sf, &ef, &inp);
-
-      read_info_file (&inp);
-
-      struct rxi_data *rxi = rxi_data_calloc (&inp);
-
-      read_data (rxi);
-
-      calculate_bg_field (rxi);
-
-      main_calculations (rxi);
-
-      calculate_results (sf, ef, rxi);
-
-      write_results (sf, ef, rxi, rxi_opts.result_path);
-
-      rxi_data_free (rxi);
-    }
-  else if (rxi_opts.usage_mode == UM_FILE)
-    {
-    }
-  else
-    {
-      operate_molecular_files (argv[pathindex]);
-    }
+  int index = rxi_set_options (&opts, argc, argv);
+  printf ("Optind: %d\n", index);
 
 	exit (EXIT_SUCCESS);
 }

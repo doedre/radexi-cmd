@@ -123,9 +123,9 @@ struct rxi_options
 };
 
 /* Exit statuses. */
-enum
+typedef enum RXI_STAT
 {
-  RADEXI_NORMAL = 1,
+  RADEXI_NORMAL = 0,
 
   /* Option for major problems, like wrong options usage, incorrect path to the
    * files or even calculation problems.  */
@@ -133,7 +133,8 @@ enum
 
   /* Printing radexi version and exit */
   RADEXI_VERSION
-};
+}
+RXI_STAT;
 
 
 /* Names of the possible collision partners for RADEX.  */
