@@ -1224,3 +1224,9 @@ int linenoiseHistoryLoad(const char *filename) {
     fclose(fp);
     return 0;
 }
+
+int linenoiseHistoryReset() {
+    freeHistory ();
+    history_len = 0;
+    return 0;
+}

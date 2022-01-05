@@ -10,6 +10,7 @@
 #include <stdbool.h>
 
 #define RXI_PATH_MAX 1024
+#define RXI_STRING_MAX 512
 #define RXI_MOLECULE_MAX 15
 
 /// @brief Status codes for functions that may fail.
@@ -23,7 +24,8 @@ typedef enum RXI_STAT
 {
   RXI_OK = 0,             //!< Everything is ok.
   RXI_ERR_ALLOC,          //!< Error on memory allocation.
-  RXI_ERR_OPTS,
+  RXI_ERR_OPTS,           //!< Error in command line options.
+  RXI_ERR_FILE,           //!< File opening error.
   RXI_WARN_LIMITS = 10    //!< 
 }
 RXI_STAT;
@@ -92,12 +94,16 @@ struct rxi_options
 
 /// @brief Get `$(HOME)/.local/share/radexi/` path.
 ///
+/// Allocates memory for the returned string, so it should be freed after usage
+/// to avoid memory leak.
 /// @return On success returns `$(HOME)/.local/share/radexi/` path string. On
 /// error returns `NULL`.
 const char *rxi_database_path ();
 
 /// @brief Get `$(HOME)/.config/radexi/` path.
 ///
+/// Allocates memory for the returned string, so it should be freed after usage
+/// to avoid memory leak.
 /// @return On success returns `$(HOME)/.config/radexi/` path string. On error
 /// returns `NULL`.
 const char *rxi_config_path ();

@@ -26,13 +26,10 @@ rxi_database_path ()
     return NULL;
 
   strcpy (db_path, home_path);
-  strcat (db_path, ".local/share/radexi/");
+  strcat (db_path, "/.local/share/radexi/");
 
-  char *path = db_path;
-  free (db_path);
-
-  ASSERT (path);
-  return path;
+  ASSERT (db_path);
+  return db_path;
 }
 
 const char*
@@ -51,11 +48,8 @@ rxi_config_path ()
     return NULL;
 
   strcpy (config_path, home_path);
-  strcat (config_path, ".config/radexi/");
+  strcat (config_path, "/.config/radexi/");
 
-  char *path = config_path;
-  free (config_path);
-
-  ASSERT (path);
-  return path;
+  ASSERT (config_path);
+  return config_path;
 }

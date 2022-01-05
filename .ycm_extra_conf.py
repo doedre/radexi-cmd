@@ -37,6 +37,7 @@ flags = [
     '-x',
     'c',
     '-std=c17',
+    '-I./3rdparty',
     '-I./inc',
     '-I./src',
     '-Wall',

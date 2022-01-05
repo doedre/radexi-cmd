@@ -36,13 +36,30 @@
 #include "rxi_common.h"
 #include "utils/options.h"
 
+RXI_STAT usage_dialogue ();
+
 int
 main (int argc, char **argv)
 {
+  RXI_STAT return_value = RXI_OK;
   struct rxi_options opts;
-
   int index = rxi_set_options (&opts, argc, argv);
-  printf ("Optind: %d\n", index);
 
-	exit (EXIT_SUCCESS);
+  switch (opts.usage_mode)
+    {
+    case UM_DIALOGUE:
+      return_value = usage_dialogue ();
+      break;
+
+
+    default:
+      break;
+    }
+
+	exit (return_value);
+}
+
+RXI_STAT usage_dialogue ()
+{
+
 }
