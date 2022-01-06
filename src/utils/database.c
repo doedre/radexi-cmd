@@ -11,12 +11,13 @@
 
 #include "rxi_common.h"
 #include "utils/cli_tools.h"
+#include "utils/csv.h"
 #include "utils/debug.h"
 
 #include "minIni/minIni.h"
 
 static RXI_STAT
-rxi_add_molecule_info (const char *name, const char *db_path, FILE *molfile)
+rxi_add_molecule_info (FILE *molfile, const char *name, const char *db_folder)
 {
   char *info_filename = malloc (RXI_PATH_MAX * sizeof (*info_filename));
   CHECK (info_filename && "Allocation error");
@@ -31,8 +32,7 @@ rxi_add_molecule_info (const char *name, const char *db_path, FILE *molfile)
       return RXI_ERR_ALLOC;
     }
 
-  strcpy (info_filename, db_path);
-  strcat (info_filename, name);
+  strcpy (info_filename, db_folder);
   strcat (info_filename, "/");
   strcat (info_filename, name);
   strcat (info_filename, ".info");
@@ -66,7 +66,69 @@ file_error:
   return RXI_ERR_FILE;
 }
 
-RXI_STAT rxi_add_molecule (const char *name, const char *path)
+static RXI_STAT
+rxi_add_molecule_enlev (FILE *molfile, const char *db_folder)
+{
+  char *enlev_filename = malloc (RXI_PATH_MAX * sizeof (*enlev_filename));
+  CHECK (enlev_filename && "Allocation error");
+  if (!enlev_filename)
+    return RXI_ERR_ALLOC;
+
+  char *line = malloc (RXI_STRING_MAX * sizeof (*line));
+  CHECK (line && "Allocation error");
+  if (!line)
+    {
+      free (enlev_filename);
+      return RXI_ERR_ALLOC;
+    }
+
+  strcpy (enlev_filename, db_folder);
+  strcat (enlev_filename, "/enlev.csv");
+
+  FILE *enlev_csv = fopen (enlev_filename, "w");
+  CHECK (enlev_csv && "File open error");
+  if (!enlev_csv)
+    {
+      free (enlev_filename);
+      free (line);
+      return RXI_ERR_FILE;
+    }
+
+  DEBUG ("Write energy level information to `%s'", enlev_filename);
+
+  // Main cycle for enlev
+  RXI_STAT stat = RXI_OK;
+  bool block = true;
+  while (fgets (line, RXI_STRING_MAX, molfile))
+    {
+      if (!strncmp (line, "!LEVEL", 6) || !strncmp (line, "! LEVEL", 7))
+        {
+          block = false;
+          continue;
+        }
+
+      if (!strncmp (line, "!NUMBER", 7) && (block == false))
+        break;
+
+      if (block)
+        continue;
+
+      stat = rxi_csv_write_line (enlev_csv, line);
+      if (stat != RXI_OK)
+        break;
+    }
+
+  CHECK ((stat == RXI_OK) && "CSV error");
+  CHECK ((block == false) && "Nothing was written");
+
+  free (enlev_filename);
+  free (line);
+  fclose (enlev_csv);
+  return stat;
+}
+
+RXI_STAT
+rxi_add_molecule (const char *name, const char *path)
 {
   DEBUG ("Start add molecule '%s' from `%s' to local database", name, path);
 
@@ -115,8 +177,11 @@ RXI_STAT rxi_add_molecule (const char *name, const char *path)
         goto file_error;
     }
 
-  status = rxi_add_molecule_info (name, db_path, molfile);
-  CHECK ((status == RXI_OK));
+  // LAMDA database file parsing starts here
+  status = rxi_add_molecule_info (molfile, db_folder, name);
+  CHECK ((status == RXI_OK) && "Information file error");
+  status = rxi_add_molecule_enlev (molfile, db_folder);
+  CHECK ((status == RXI_OK) && "Energy levels file error");
 
   free (db_folder);
   free ((void*)db_path);
