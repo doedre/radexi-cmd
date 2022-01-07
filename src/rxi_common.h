@@ -11,7 +11,10 @@
 
 #define RXI_PATH_MAX 1024
 #define RXI_STRING_MAX 512
+
 #define RXI_MOLECULE_MAX 15
+#define RXI_COLL_TEMPS_MAX 30
+#define RXI_COLL_PARTNERS_MAX 7
 
 /// @brief Status codes for functions that may fail.
 ///
@@ -26,7 +29,9 @@ typedef enum RXI_STAT
   RXI_ERR_ALLOC,          //!< Error on memory allocation.
   RXI_ERR_OPTS,           //!< Error in command line options.
   RXI_ERR_FILE,           //!< File opening error.
-  RXI_WARN_LIMITS = 10    //!< 
+  RXI_ERR_CONV,           //!< Error with type conversion.
+  RXI_WARN_LIMITS = 10,   //!< 
+  RXI_WARN_LAMDA          //!< LAMDA's information mismatch.
 }
 RXI_STAT;
 
@@ -107,5 +112,44 @@ const char *rxi_database_path ();
 /// @return On success returns `$(HOME)/.config/radexi/` path string. On error
 /// returns `NULL`.
 const char *rxi_config_path ();
+
+/// @brief Names of the possible collision partners from LAMDA.
+typedef enum COLL_PART
+{
+  H2 = 1,
+  PARA_H2,
+  ORTHO_H2,
+  ELECTRONS,
+  HI,
+  He,
+  HII,
+  NO_PARTNER = 0
+}
+COLL_PART;
+
+/// @brief Information about collision partner from LAMDA database.
+struct rxi_db_molecule_coll_part_info
+{
+  COLL_PART coll_part;
+  int     numof_coll_trans;
+  int8_t  numof_coll_temps; 
+  float   coll_temps[RXI_COLL_TEMPS_MAX];
+};
+
+/// @brief Used to store molecular information from `*.info` file or LAMDA.
+struct rxi_db_molecule_info
+{
+  char  *name;
+  float weight;
+  int   numof_enlev;
+  int   numof_radtr;
+  int   numof_coll_part;
+  struct rxi_db_molecule_coll_part_info coll_partners[RXI_COLL_PARTNERS_MAX];
+};
+
+/// @brief
+RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info);
+
+void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
 
 #endif  // RXI_COMMON_H

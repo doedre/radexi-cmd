@@ -16,7 +16,7 @@
 RXI_STAT
 rxi_csv_write_line (FILE *csv, const char *line)
 {
-  DEBUG ("Writing '%s' to .csv file", line);
+  /*DEBUG ("Writing '%s' to .csv file", line);*/
 
   char *nline = malloc (RXI_STRING_MAX * sizeof (*nline));
   CHECK (nline && "Allocation failed");
@@ -31,13 +31,12 @@ rxi_csv_write_line (FILE *csv, const char *line)
         fprintf (csv, ",");
 
       // Remove control characters
-      char *token_clean = token;
       for (int i = 0; token[i] != '\0'; ++i)
         {
           if (iscntrl ((uint8_t)token[i]))
-            token_clean[i++] = ' ';
+            token[i] = ' ';
         }
-      fprintf (csv, "%s", token_clean);
+      fprintf (csv, "%s", token);
       is_first = false;
     }
   fprintf (csv, "\n");

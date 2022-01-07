@@ -10,3 +10,6 @@ RXI_STAT rxi_add_molecule (const char *name, const char *path);
 
 /// @brief Remove molecule from the local database.
 RXI_STAT rxi_delete_molecule (char *name);
+
+/// @brief Converts collisional partner number to string.
+char *numtoname (COLL_PART cp);

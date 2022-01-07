@@ -53,3 +53,36 @@ rxi_config_path ()
   ASSERT (config_path);
   return config_path;
 }
+
+RXI_STAT
+rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info)
+{
+  struct rxi_db_molecule_info *mi = malloc (sizeof (*mi));
+  CHECK (mi);
+  if (!mi)
+    goto malloc_error;
+
+  char *name = malloc (RXI_STRING_MAX * sizeof (*name));
+  CHECK (name);
+  if (!name)
+    {
+      free (mi);
+      goto malloc_error;
+    }
+
+  mi->name = name;
+  *mol_info = mi;
+
+  return RXI_OK;
+
+malloc_error:
+  *mol_info = NULL;
+  return RXI_ERR_ALLOC;
+}
+
+void
+rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info)
+{
+  free (mol_info->name);
+  free (mol_info);
+}

@@ -32,9 +32,11 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "rxi_common.h"
 #include "utils/options.h"
+#include "utils/database.h"
 
 RXI_STAT usage_dialogue ();
 
