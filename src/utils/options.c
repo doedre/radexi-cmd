@@ -16,14 +16,14 @@
 ///
 /// Look for `getopt.h` `man` pages for additional information.
 struct option const long_options[] = {
-  {"add-molecule",  required_argument,  NULL, ADD_MOLECULE_OPTION},
-//  {"list-molecules", no_argument, NULL, LIST_MOLECULES_OPTION},
-//  {"delete-molecule", required_argument, NULL, DELETE_MOLECULE_OPTION},
-  {"log-density",   no_argument,        NULL, 'L'},
-  {"hz-width",      no_argument,        NULL, 'H'},
-  {"help",          no_argument,        NULL, 'h'},
-  {"result",        required_argument,  NULL, 'r'},
-  {"version",       no_argument,        NULL, VERSION_OPTION}
+  {"add-molecule",    required_argument,  NULL, ADD_MOLECULE_OPTION},
+  {"list-molecules",  no_argument,        NULL, LIST_MOLECULES_OPTION},
+  {"delete-molecule", required_argument,  NULL, DELETE_MOLECULE_OPTION},
+  {"log-density",     no_argument,        NULL, 'L'},
+  {"hz-width",        no_argument,        NULL, 'H'},
+  {"help",            no_argument,        NULL, 'h'},
+  {"result",          required_argument,  NULL, 'r'},
+  {"version",         no_argument,        NULL, VERSION_OPTION}
 };
 
 
@@ -34,6 +34,7 @@ rxi_set_default_options (struct rxi_options *opts)
   opts->usage_mode = UM_NONE;
   opts->status = RXI_OK;
   opts->force_fs = false;
+  opts->no_freq_limits = false;
   opts->quite_start = false;
   opts->cmd_output = false;
   opts->dens_log_scale = false;
@@ -50,7 +51,7 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
   int option_index = 0;
   int opt;
   while ((opt = getopt_long (argc, argv, 
-                              ":fLqHhor:", 
+                              ":flLqHhor:", 
                               long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -58,6 +59,11 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
         case 'L':
           DEBUG ("Set -L (--log-density) option");
           opts->dens_log_scale = true;
+          break;
+
+        case 'l':
+          DEBUG ("Set -l option");
+          opts->no_freq_limits = true;
           break;
 
         case 'H':
@@ -113,6 +119,7 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
             break;
 
           opts->usage_mode = UM_MOLECULAR_FILE_DELETE;
+          strcpy (opts->molecule_name, optarg);
           break;
 
         case VERSION_OPTION:
@@ -143,7 +150,7 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
           break;
         }
     }
-  
+
   if ((optind == -1) && (opts->usage_mode == UM_NONE))
     opts->usage_mode = UM_FILE;
   else if (opts->usage_mode == UM_NONE)

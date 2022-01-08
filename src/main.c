@@ -35,10 +35,14 @@
 #include <string.h>
 
 #include "rxi_common.h"
+#include "core/dialogue.h"
 #include "utils/options.h"
 #include "utils/database.h"
 
-RXI_STAT usage_dialogue ();
+RXI_STAT usage_dialogue (const struct rxi_options *opts);
+
+RXI_STAT usage_print_version ();
+RXI_STAT usage_print_help ();
 
 int
 main (int argc, char **argv)
@@ -50,18 +54,54 @@ main (int argc, char **argv)
   switch (opts.usage_mode)
     {
     case UM_DIALOGUE:
-      return_value = usage_dialogue ();
+      return_value = usage_dialogue (&opts);
       break;
 
+    case UM_MOLECULAR_FILE_ADD:
+      return_value = rxi_add_molecule (opts.molecule_name, argv[index]);
+      break;
+
+    case UM_MOLECULAR_FILE_DELETE:
+      return_value = rxi_delete_molecule (opts.molecule_name);
+      break;
+
+    case UM_MOLECULAR_FILE_LIST:
+      return_value = rxi_list_molecules ();
+      break;
+
+    case UM_VERSION:
+      return_value = usage_print_version ();
+      break;
+
+    case UM_HELP:
+      return_value = usage_print_help ();
+      break;
 
     default:
       break;
     }
 
-	exit (return_value);
+  printf ("Status: %u\n", return_value);
+  return return_value;
 }
 
-RXI_STAT usage_dialogue ()
+RXI_STAT
+usage_dialogue (const struct rxi_options *opts)
 {
+  struct rxi_input_data *inp_data = malloc (sizeof (*inp_data));
+  return rxi_dialog_input (inp_data, opts);
+}
 
+RXI_STAT
+usage_print_help ()
+{
+  printf ("HELP\n");
+  return RXI_OK;
+}
+
+RXI_STAT
+usage_print_version ()
+{
+  printf ("VERSION\n");
+  return RXI_OK;
 }

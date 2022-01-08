@@ -31,7 +31,8 @@ typedef enum RXI_STAT
   RXI_ERR_FILE,           //!< File opening error.
   RXI_ERR_CONV,           //!< Error with type conversion.
   RXI_WARN_LIMITS = 10,   //!< 
-  RXI_WARN_LAMDA          //!< LAMDA's information mismatch.
+  RXI_WARN_LAMDA,         //!< LAMDA's information mismatch.
+  RXI_WARN_NOFILE
 }
 RXI_STAT;
 
@@ -71,6 +72,8 @@ struct rxi_options
    * already exist.
    * -f flag: disabled by default */
   bool force_fs;
+
+  bool no_freq_limits;
 
   /* Whether resulting table should be printed in the terminal or not.
    * -o flag: disabled by default */
@@ -127,6 +130,15 @@ typedef enum COLL_PART
 }
 COLL_PART;
 
+typedef enum GEOMETRY
+{
+  SPHERE = 1,
+  SLAB,
+  LVG,
+  OTHER = 0
+}
+GEOMETRY;
+
 /// @brief Information about collision partner from LAMDA database.
 struct rxi_db_molecule_coll_part_info
 {
@@ -147,9 +159,26 @@ struct rxi_db_molecule_info
   struct rxi_db_molecule_coll_part_info coll_partners[RXI_COLL_PARTNERS_MAX];
 };
 
-/// @brief
+/// @brief TODO
 RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info);
 
+/// @brief TODO
 void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
+
+/// @brief TODO
+struct rxi_input_data
+{
+  char name[RXI_MOLECULE_MAX];
+  float sfreq;
+  float efreq;
+  double temp_kin;
+  double temp_bg;
+  double col_dens;
+  double line_width;
+  GEOMETRY geom;
+  int8_t n_coll_partners;
+  COLL_PART coll_part[RXI_COLL_PARTNERS_MAX];
+  double coll_part_dens[RXI_COLL_PARTNERS_MAX];
+};
 
 #endif  // RXI_COMMON_H

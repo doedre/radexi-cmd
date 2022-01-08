@@ -6,6 +6,8 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
+#include <dirent.h>
+#include <unistd.h>
 #include <sys/stat.h>
 
 #include "utils/database.h"
@@ -249,9 +251,12 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
           return RXI_ERR_CONV;
         }
 
-      ini_stat += !ini_putl (cp_name, "collisional_transitions",
+      char *section_name = malloc (RXI_STRING_MAX * sizeof (*section_name));
+      sprintf (section_name, "Partner %d", i + 1);
+      ini_stat += !ini_puts (section_name, "partner", cp_name, info_filename);
+      ini_stat += !ini_putl (section_name, "collisional_transitions",
           mol_info->coll_partners[i].numof_coll_trans, info_filename);
-      ini_stat += !ini_putl (cp_name, "collisional_temperatures",
+      ini_stat += !ini_putl (section_name, "collisional_temperatures",
           mol_info->coll_partners[i].numof_coll_temps, info_filename);
       
       char *temps = malloc (RXI_STRING_MAX * sizeof (*temps));
@@ -259,6 +264,7 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
         {
           free (cp_name);
           free (info_filename);
+          free (section_name);
           return RXI_ERR_ALLOC;
         }
 
@@ -269,10 +275,12 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
           memcpy (temps + 8 * j, t, 9);
           free (t);
         }
-      ini_stat += !ini_puts (cp_name, "temperatures", temps, info_filename);
+      ini_stat += !ini_puts (section_name, "temperatures", temps,
+                             info_filename);
 
       free (cp_name);
       free (temps);
+      free (section_name);
     }
 
   free (info_filename);
@@ -477,6 +485,110 @@ file_error:
   return RXI_ERR_FILE;
 }
 
+static RXI_STAT
+rxi_delete_molecule_folder (const char *db_folder, const struct stat *sb)
+{
+  RXI_STAT status = RXI_OK;
+  DIR *dir;
+  struct dirent *entry;
+  struct stat sb_entry;
+
+  // Check if it is a directory
+  if (S_ISDIR (sb->st_mode) == 0)
+    return RXI_ERR_FILE;
+
+  // Check if it is openable
+  if ((dir = opendir (db_folder)) == NULL)
+    return RXI_ERR_FILE;
+
+  while ((entry = readdir (dir)) != NULL)
+    {
+      if (!strcmp (entry->d_name, ".") || !strcmp (entry->d_name, ".."))
+        continue;
+
+      char *entry_pathname = malloc (RXI_STRING_MAX * sizeof (*entry_pathname));
+      strcpy (entry_pathname, db_folder);
+      strcat (entry_pathname, "/");
+      strcat (entry_pathname, entry->d_name);
+
+      stat (entry_pathname, &sb_entry);
+
+      DEBUG ("Removing `%s'", entry_pathname);
+      // Recursively delete directories
+      if (S_ISDIR (sb_entry.st_mode) != 0)
+        {
+          status = rxi_delete_molecule_folder (entry_pathname, &sb_entry);
+          if (status != RXI_OK)
+            {
+              free (entry_pathname);
+              break;
+            }
+
+          free (entry_pathname);
+          continue;
+        }
+
+      if (unlink (entry_pathname) != 0)
+        status = RXI_ERR_FILE;
+
+      free (entry_pathname);
+    }
+
+  closedir (dir);
+
+  if (rmdir (db_folder) != 0)
+    status = RXI_ERR_FILE;
+
+  return status;
+}
+
+RXI_STAT
+rxi_delete_molecule (const char *name)
+{
+  DEBUG ("Start delete molecule '%s'", name);
+
+  RXI_STAT status = RXI_OK;
+
+  const char *db_path = rxi_database_path ();
+  CHECK (db_path && "Allocation error");
+  if (!db_path)
+    return RXI_ERR_ALLOC;
+
+  char *db_folder = malloc (RXI_PATH_MAX * sizeof (*db_folder));
+  CHECK (db_folder && "Allocation error");
+  if (!db_folder)
+    {
+      free ((void*)db_path);
+      return RXI_ERR_ALLOC;
+    }
+  strcpy (db_folder, db_path);
+  strcat (db_folder, name);
+
+  DEBUG ("Local database folder `%s'", db_folder);
+
+  // Check if local database folder with this name exist
+  struct stat sb;
+  if (stat (db_folder, &sb) != -1)
+    {
+      DEBUG ("Folder exists, trying to delete");
+      status = rxi_delete_molecule_folder (db_folder, &sb);
+    }
+  else 
+    {
+      status = RXI_WARN_NOFILE;
+    }
+
+  free ((void*)db_path);
+  free (db_folder);
+  return status;
+}
+
+RXI_STAT
+rxi_list_molecules ()
+{
+  return RXI_OK;
+}
+
 char*
 numtoname (COLL_PART cp)
 {
@@ -503,4 +615,176 @@ numtoname (COLL_PART cp)
     cp_name = NULL;
 
   return cp_name;
+}
+
+COLL_PART
+nametonum (const char *name)
+{
+  char *cp_name = malloc (RXI_STRING_MAX * sizeof (*cp_name));
+  strcpy (cp_name, name);
+  COLL_PART result;
+  for (int8_t i = 0; name[i] != '\0'; ++i)
+    cp_name[i] = tolower (name[i]);
+
+  if (!strcmp (cp_name, "h2"))
+    result =  H2;
+  else if (!strcmp (cp_name, "ph2"))
+    result = PARA_H2;
+  else if (!strcmp (cp_name, "oh2"))
+    result = ORTHO_H2;
+  else if (!strcmp (cp_name, "electrons"))
+    result = ELECTRONS;
+  else if (!strcmp (cp_name, "hi"))
+    result = HI;
+  else if (!strcmp (cp_name, "he"))
+    result = He;
+  else if (!strcmp (cp_name, "hii"))
+    result = HII;
+  else
+    result = NO_PARTNER;
+
+  free (cp_name);
+  return result;
+}
+
+int
+rxi_db_molecule_iter (DIR *dir, char *name)
+{
+  struct dirent *entry;
+  struct stat sb;
+  if ((entry = readdir (dir)) != NULL)
+    {
+      strncpy (name, entry->d_name, RXI_MOLECULE_MAX);
+      /* Skips folders starting at '.'  */
+      if (strncmp (entry->d_name, ".", 1) == 0)
+        return -1;
+
+      stat (entry->d_name, &sb);
+      if (S_ISDIR (sb.st_mode))
+        return -2;
+    }
+  else 
+    return 0;
+
+  return 1;
+}
+
+RXI_STAT
+rxi_db_read_molecule_info (const char *name,
+                           struct rxi_db_molecule_info *mol_info)
+{
+  const char *db_path = rxi_database_path ();
+  CHECK (db_path && "Allocation error");
+  if (!db_path)
+    return RXI_ERR_FILE;
+
+  char *filename = malloc (RXI_PATH_MAX * sizeof (*filename));
+  CHECK (filename && "Allocation error");
+  if (!filename)
+    {
+      free ((void*)db_path);
+      return RXI_ERR_ALLOC;
+    }
+  strcpy (filename, db_path);
+  strcat (filename, name);
+
+  struct stat sb;
+  stat (filename, &sb);
+  if (S_ISDIR (sb.st_mode))
+    {
+      free ((void*)db_path);
+      free (filename);
+      return RXI_ERR_FILE;
+    }
+
+  int ini_stat = 0;
+  ini_gets ("Information", "name", "no_name", mol_info->name, RXI_STRING_MAX,
+            filename);
+  if (!strcmp (mol_info->name, "no_name"))
+    ++ini_stat;
+
+  mol_info->weight = ini_getf ("Information", "weight", 0., filename);
+  if (mol_info->weight < 1)
+    ++ini_stat;
+ 
+  mol_info->numof_enlev = ini_getl ("Information", "energy_levels", 0,
+                                    filename);
+  if (mol_info->numof_enlev < 1)
+    ++ini_stat;
+ 
+  mol_info->numof_radtr = ini_getl ("Information", "radiative_transitions", 0,
+                                    filename);
+  if (mol_info->numof_radtr < 1)
+    ++ini_stat;
+ 
+  mol_info->numof_coll_part = ini_getl ("Information", "collisional_partners",
+                                        0, filename);
+  if (mol_info->numof_coll_part < 1)
+    ++ini_stat;
+
+  for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
+    {
+      char *section_name = malloc (RXI_STRING_MAX * sizeof (*section_name));
+      CHECK (section_name && "Allocation error");
+      if (!section_name)
+        {
+          free ((void*)db_path);
+          free (filename);
+          return RXI_ERR_ALLOC;
+        }
+
+      char *cp_name = malloc (RXI_STRING_MAX * sizeof (*cp_name));
+      CHECK (cp_name && "Allocation error");
+      if (!cp_name)
+        {
+          free ((void*)db_path);
+          free (filename);
+          free (section_name);
+          return RXI_ERR_ALLOC;
+        }
+
+      sprintf (section_name, "Partner %d", i + 1);
+      ini_gets (section_name, "partner", "no_name", cp_name, RXI_STRING_MAX,
+                filename);
+      mol_info->coll_partners[i].coll_part = nametonum (cp_name);
+      if (!strcmp (cp_name, "no_name"))
+        ++ini_stat;
+      free (cp_name);
+
+      mol_info->coll_partners[i].numof_coll_trans = ini_getl (section_name,
+          "collisional_transitions", 0, filename);
+      if (mol_info->coll_partners[i].numof_coll_trans < 1)
+        ++ini_stat;
+
+      mol_info->coll_partners[i].numof_coll_temps = ini_getl (section_name,
+          "collisional_temperatures", 0, filename);
+      if (mol_info->coll_partners[i].numof_coll_temps < 1)
+        ++ini_stat;
+
+      char *start = malloc (RXI_STRING_MAX * sizeof (*start));
+      ini_gets (section_name, "temperatures", "no_temps", start,
+                RXI_STRING_MAX, filename);
+      if (!strcmp (start, "no_temps"))
+        ++ini_stat;
+      char *end;
+      int8_t j = 0;
+      for (float f = strtof (start, &end);
+           start != end;
+           f = strtof (start, &end))
+        {
+          start = end;
+          mol_info->coll_partners[i].coll_temps[j] = f;
+          ++j;
+        }
+
+      free (section_name);
+      free (start);
+    }
+
+  free ((void*)db_path);
+  free (filename);
+  if (ini_stat != 0)
+    return RXI_ERR_FILE;
+
+  return RXI_ERR_ALLOC;
 }

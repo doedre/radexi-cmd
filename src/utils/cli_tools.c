@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 #include <ctype.h>
 
 #include "linenoise/linenoise.h"
@@ -41,17 +42,38 @@ bool rxi_readline_accept ()
 
 RXI_STAT rxi_history_save (const char *line, const char *filename)
 {
-  DEBUG ("Save command '%s' to `%s'", line, filename);
+  const char *history_path = rxi_config_path ();
+  CHECK (history_path && "Allocation error");
+  if (!history_path)
+    return RXI_ERR_ALLOC;
+
+  char *history_file = malloc (RXI_PATH_MAX * sizeof (*history_file));
+  CHECK (history_file && "Allocation error");
+  if (!history_file)
+  {
+      free ((void*)history_path);
+      return RXI_ERR_ALLOC;
+  }
+
+  strcpy (history_file, history_path);
+  strcat (history_file, filename);
+
+  DEBUG ("Save command '%s' to `%s'", line, history_file);
 
   int ln_status = linenoiseHistoryAdd (line);
   if (ln_status != 1)
     {
       DEBUG ("Command '%s' cannot be added to history", line);
+      free ((void*)history_path);
+      free (history_file);
       return RXI_OK;
     }
 
-  ln_status = linenoiseHistorySave (filename); 
+  ln_status = linenoiseHistorySave (history_file); 
   CHECK ((ln_status == 0) && "linenoise error");
+
+  free ((void*)history_path);
+  free (history_file);
   if (ln_status != 0)
     return RXI_ERR_FILE;
 
@@ -60,11 +82,31 @@ RXI_STAT rxi_history_save (const char *line, const char *filename)
 
 RXI_STAT rxi_history_load (const char *filename)
 {
-  DEBUG ("Load command history from `%s'", filename);
+  const char *history_path = rxi_config_path ();
+  CHECK (history_path && "Allocation error");
+  if (!history_path)
+    return RXI_ERR_ALLOC;
+
+  char *history_file = malloc (RXI_PATH_MAX * sizeof (*history_file));
+  CHECK (history_file && "Allocation error");
+  if (!history_file)
+  {
+      free ((void*)history_path);
+      return RXI_ERR_ALLOC;
+  }
+
+  strcpy (history_file, history_path);
+  strcat (history_file, filename);
+
+  DEBUG ("Load command history from `%s'", history_file);
 
   linenoiseHistoryReset ();
-  int ln_status = linenoiseHistoryLoad (filename);
+  int ln_status = linenoiseHistoryLoad (history_file);
   CHECK ((ln_status == 0) && "linenoise error");
+
+  free ((void*)history_path);
+  free (history_file);
+
   if (ln_status != 0)
     return RXI_ERR_FILE;
 
