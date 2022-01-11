@@ -28,3 +28,6 @@ int rxi_db_molecule_iter (DIR *dir, char *name);
 /// @brief Reads molecular info file.
 RXI_STAT rxi_db_read_molecule_info (const char *name,
                                     struct rxi_db_molecule_info *mol_info);
+
+/// @brief Reads energy levels file.
+RXI_STAT rxi_db_read_molecule_enlev (const char *name,)

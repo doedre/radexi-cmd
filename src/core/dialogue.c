@@ -120,7 +120,7 @@ get_frequencies (float *sfreq, float *efreq)
           print_dialog_error ();
         }
 
-      free (start);
+//      free (start);
     }
 
   free (line);
@@ -307,11 +307,12 @@ parse_collision_partners (char *line, COLL_PART *coll_part,
   int8_t i = 0;
   for (char *tok = strtok (line, ";"); tok; tok = strtok (NULL, ";"))
     {
+      DEBUG ("Parsing %s", tok);
       char *pair = malloc (RXI_STRING_MAX * sizeof (*pair));
       CHECK (pair);
-      strcpy (pair, tok);
+      memcpy (pair, tok, RXI_STRING_MAX);
 
-      for (char *value = strtok (pair, ";"); value; value = strtok (NULL, ";"))
+      for (char *value = strtok (pair, " "); value; value = strtok (NULL, " "))
         {
           COLL_PART cp = nametonum (value);
           if (cp != NO_PARTNER)
@@ -319,14 +320,32 @@ parse_collision_partners (char *line, COLL_PART *coll_part,
               coll_part[i] = cp;
               continue;
             }
-          
+
           double d = strtod (value, NULL);
-          if ((d > 0) && (d < 1e14))
+          if ((d > 10) && (d < 1e14))
             coll_part_dens[i] = strtod (value, NULL);
         }
       ++i;
     }
   *n_coll_part = i;
+}
+
+static bool
+check_coll_partner (COLL_PART cp,
+                    struct rxi_db_molecule_info *mol_info)
+{
+  bool result = false;
+  for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
+    {
+      DEBUG ("Comparing collision partners %u and %u: ", cp,
+             mol_info->coll_partners[i].coll_part);
+      if (cp == mol_info->coll_partners[i].coll_part)
+        {
+          result = true;
+          break;
+        }
+    }
+  return result;
 }
 
 static RXI_STAT
@@ -343,7 +362,6 @@ get_collision_partners (struct rxi_input_data *inp_data)
   CHECK ((status == RXI_OK) && "Can't load history file");
 
   status = RXI_OK;
-  bool is_written = false;
   struct rxi_db_molecule_info *mol_info;
   status = rxi_db_molecule_info_malloc (&mol_info);
   CHECK ((status == RXI_OK) && "Allocation error");
@@ -355,14 +373,15 @@ get_collision_partners (struct rxi_input_data *inp_data)
 
   status = rxi_db_read_molecule_info (inp_data->name, mol_info);
   CHECK ((status == RXI_OK) && "Info file error");
-  if (status != RXI_OK)
+  /*if (status != RXI_OK)
     {
       rxi_db_molecule_info_free (mol_info);
       free (line);
       return status;
     }
+*/
 
-
+  bool is_written = false;
   while (!is_written && ((line = rxi_readline ("  >> ")) != NULL))
     {
       parse_collision_partners (line, inp_data->coll_part,
@@ -370,15 +389,25 @@ get_collision_partners (struct rxi_input_data *inp_data)
 
       for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
         {
-
+          DEBUG ("Checking collision partners");
+          if (!check_coll_partner (inp_data->coll_part[i], mol_info))
+            {
+              print_dialog_error ();
+              is_written = false;
+              break;
+            }
+          else
+            {
+              is_written = true;
+            }
         }
         
     }
+  rxi_history_save (line, "coll_part.history");
 
   rxi_db_molecule_info_free (mol_info);
   free (line);
   return status;
-
 }
 
 RXI_STAT
@@ -429,10 +458,9 @@ rxi_dialog_input (struct rxi_input_data *inp_data,
   CHECK ((status == RXI_OK) && "Error getting geometry");
 
   printf ("   ## Enter collision partners and their densities");
-/*
-  status = get_collision_partners (inp_data->coll_part,
-      inp_data->coll_part_dens, &inp_data->n_coll_partners);
+
+  status = get_collision_partners (inp_data);
   CHECK ((status == RXI_OK) && "Error getting collision partners");
-*/
+
   return status;
 }

@@ -89,7 +89,10 @@ RXI_STAT
 usage_dialogue (const struct rxi_options *opts)
 {
   struct rxi_input_data *inp_data = malloc (sizeof (*inp_data));
-  return rxi_dialog_input (inp_data, opts);
+  RXI_STAT stat = rxi_dialog_input (inp_data, opts);
+  printf ("Name: %s, cp: %u", inp_data->name, inp_data->coll_part[0]);
+
+  return stat;
 }
 
 RXI_STAT

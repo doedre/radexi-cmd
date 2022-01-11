@@ -687,6 +687,10 @@ rxi_db_read_molecule_info (const char *name,
     }
   strcpy (filename, db_path);
   strcat (filename, name);
+  strcat (filename, "/");
+  strcat (filename, name);
+  strcat (filename, ".info");
+  DEBUG ("%s", filename);
 
   struct stat sb;
   stat (filename, &sb);
@@ -700,27 +704,22 @@ rxi_db_read_molecule_info (const char *name,
   int ini_stat = 0;
   ini_gets ("Information", "name", "no_name", mol_info->name, RXI_STRING_MAX,
             filename);
-  if (!strcmp (mol_info->name, "no_name"))
-    ++ini_stat;
+  DEBUG ("Molecule name: %s", mol_info->name);
 
   mol_info->weight = ini_getf ("Information", "weight", 0., filename);
-  if (mol_info->weight < 1)
-    ++ini_stat;
+  DEBUG ("Molecule weight: %f", mol_info->weight);
  
   mol_info->numof_enlev = ini_getl ("Information", "energy_levels", 0,
                                     filename);
-  if (mol_info->numof_enlev < 1)
-    ++ini_stat;
+  DEBUG ("Number of energy levels: %d", mol_info->numof_enlev);
  
   mol_info->numof_radtr = ini_getl ("Information", "radiative_transitions", 0,
                                     filename);
-  if (mol_info->numof_radtr < 1)
-    ++ini_stat;
+  DEBUG ("Number of radiative transitions: %d", mol_info->numof_radtr);
  
-  mol_info->numof_coll_part = ini_getl ("Information", "collisional_partners",
+  mol_info->numof_coll_part = ini_getl ("Information", "collision_partners",
                                         0, filename);
-  if (mol_info->numof_coll_part < 1)
-    ++ini_stat;
+  DEBUG ("Number of collision partners: %d", mol_info->numof_coll_part);
 
   for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
     {
@@ -747,25 +746,23 @@ rxi_db_read_molecule_info (const char *name,
       ini_gets (section_name, "partner", "no_name", cp_name, RXI_STRING_MAX,
                 filename);
       mol_info->coll_partners[i].coll_part = nametonum (cp_name);
-      if (!strcmp (cp_name, "no_name"))
-        ++ini_stat;
+      DEBUG ("%d collision partner name: %s -> %d", i, cp_name,
+             mol_info->coll_partners[i].coll_part);
       free (cp_name);
 
       mol_info->coll_partners[i].numof_coll_trans = ini_getl (section_name,
           "collisional_transitions", 0, filename);
-      if (mol_info->coll_partners[i].numof_coll_trans < 1)
-        ++ini_stat;
+      DEBUG ("%d number of collisional transitions: %d", i,
+             mol_info->coll_partners[i].numof_coll_trans);
 
       mol_info->coll_partners[i].numof_coll_temps = ini_getl (section_name,
           "collisional_temperatures", 0, filename);
-      if (mol_info->coll_partners[i].numof_coll_temps < 1)
-        ++ini_stat;
+      DEBUG ("%d number of collisional temperatures: %d", i,
+             mol_info->coll_partners[i].numof_coll_temps);
 
       char *start = malloc (RXI_STRING_MAX * sizeof (*start));
       ini_gets (section_name, "temperatures", "no_temps", start,
                 RXI_STRING_MAX, filename);
-      if (!strcmp (start, "no_temps"))
-        ++ini_stat;
       char *end;
       int8_t j = 0;
       for (float f = strtof (start, &end);
@@ -774,17 +771,15 @@ rxi_db_read_molecule_info (const char *name,
         {
           start = end;
           mol_info->coll_partners[i].coll_temps[j] = f;
+          DEBUG ("%d temperature: %f", i, f);
           ++j;
         }
 
       free (section_name);
-      free (start);
     }
 
   free ((void*)db_path);
   free (filename);
-  if (ini_stat != 0)
-    return RXI_ERR_FILE;
 
   return RXI_ERR_ALLOC;
 }
