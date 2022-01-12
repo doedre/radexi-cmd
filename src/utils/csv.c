@@ -43,3 +43,26 @@ rxi_csv_write_line (FILE *csv, const char *line)
 
   return RXI_OK;
 }
+
+RXI_STAT
+rxi_csv_read_line (FILE *csv, void **buff)
+{
+  char *nline = malloc (RXI_STRING_MAX * sizeof (*nline));
+  CHECK (nline && "Allocation failed");
+  if (!nline)
+    return RXI_ERR_ALLOC;
+
+  if (!fgets (nline, RXI_STRING_MAX, csv))
+    {
+      free (nline);
+      return RXI_FILE_END;
+    }
+
+  int i = 0;
+  for (char *token = strtok (nline, ","); token; token = strtok (NULL, ","))
+    {
+      memcpy (buff[i], nline, RXI_STRING_MAX);
+    }
+
+  return RXI_OK;
+}

@@ -35,7 +35,8 @@ typedef enum RXI_STAT
   RXI_ERR_CONV,           //!< Error with type conversion.
   RXI_WARN_LIMITS = 10,   //!< 
   RXI_WARN_LAMDA,         //!< LAMDA's information mismatch.
-  RXI_WARN_NOFILE
+  RXI_WARN_NOFILE,
+  RXI_FILE_END
 }
 RXI_STAT;
 
@@ -184,16 +185,23 @@ RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info);
 /// @brief TODO
 void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
 
-/// @brief TODO
+/// @brief Holds energy level information from database.
 struct rxi_db_molecule_enlev
 {
   int   *level;
   gsl_vector *energy;
   gsl_vector *weight;
-  char  *qnum[RXI_QNUM_MAX];
+  char  **qnum;
 };
 
+/// @brief Memory allocation for `struct rxi_db_molecule_enlev`.
+RXI_STAT rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
+                                       const size_t n_enlev);
+
 /// @brief TODO
+void rxi_db_molecule_enlev_free (struct rxi_db_molecule_enlev *mol_enl);
+
+/// @brief Holds radiative transfer information from database.
 struct rxi_db_molecule_radtr
 {
   int   *up;
@@ -204,11 +212,26 @@ struct rxi_db_molecule_radtr
 };
 
 /// @brief TODO
+RXI_STAT rxi_db_molecule_radtr_malloc (struct rxi_db_molecule_radtr **mol_rat,
+                                       const size_t n_radtr);
+
+/// @brief TODO
+void rxi_db_molecule_radtr_free (struct rxi_db_molecule_radtr *mol_rat);
+
+/// @brief Holds collisional coefficients for specific molecule.
 struct rxi_db_molecule_coll_part
 {
   int   *up;
   int   *low;
   gsl_matrix *coll_rates;
 };
+
+/// @brief TODO
+RXI_STAT rxi_db_molecule_coll_part_malloc (
+    struct rxi_db_molecule_coll_part **mol_cp, const size_t n_colparts,
+    const size_t n_temps);
+
+/// @brief TODO
+void rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp);
 
 #endif  // RXI_COMMON_H

@@ -701,7 +701,6 @@ rxi_db_read_molecule_info (const char *name,
       return RXI_ERR_FILE;
     }
 
-  int ini_stat = 0;
   ini_gets ("Information", "name", "no_name", mol_info->name, RXI_STRING_MAX,
             filename);
   DEBUG ("Molecule name: %s", mol_info->name);
@@ -782,4 +781,41 @@ rxi_db_read_molecule_info (const char *name,
   free (filename);
 
   return RXI_ERR_ALLOC;
+}
+
+RXI_STAT
+rxi_db_read_molecule_enlev (const char *name,
+                            struct rxi_db_molecule_enlev *mol_enl)
+{
+  char *filename = malloc (RXI_PATH_MAX * sizeof (*filename));
+  CHECK (filename && "Allocation error");
+  if (!filename)
+    return RXI_ERR_ALLOC;
+
+  const char *db_path = rxi_database_path ();
+  CHECK (db_path && "Allocation error");
+  if (!db_path)
+    {
+      free (filename);
+      return RXI_ERR_ALLOC;
+    }
+
+  strcpy (filename, db_path);
+  strcat (filename, name);
+  strcat (filename, "/enlev.csv");
+  free ((void*)db_path);
+
+  DEBUG ("Reading enlev from `%s'", filename);
+
+  FILE *enlev_csv = fopen (filename, "r");
+  CHECK (enlev_csv && "Error open file");
+  if (!enlev_csv)
+    {
+      free (filename);
+      return RXI_ERR_FILE;
+    }
+
+  fclose (enlev_csv);
+  free (filename);
+  return RXI_OK;
 }
