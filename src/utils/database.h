@@ -32,3 +32,11 @@ RXI_STAT rxi_db_read_molecule_info (const char *name,
 /// @brief Reads energy levels file.
 RXI_STAT rxi_db_read_molecule_enlev (const char *name,
                                      struct rxi_db_molecule_enlev *mol_enlev);
+
+/// @brief Reads radiation transfer file.
+RXI_STAT rxi_db_read_molecule_radtr (const char *name,
+                                     struct rxi_db_molecule_radtr *mol_radtr);
+
+RXI_STAT rxi_db_read_molecule_coll_part (const char *mol_name,
+      const COLL_PART cp, const size_t n_temps,
+      struct rxi_db_molecule_coll_part *mol_cp);

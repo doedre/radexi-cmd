@@ -16,8 +16,10 @@
 #define RXI_QNUM_MAX 30
 
 #define RXI_MOLECULE_MAX 15
-#define RXI_COLL_TEMPS_MAX 30
+#define RXI_COLL_TEMPS_MAX 50
 #define RXI_COLL_PARTNERS_MAX 7
+
+#define RXI_ELEMENTS_MAX RXI_COLL_TEMPS_MAX + 3
 
 /// @brief Status codes for functions that may fail.
 ///
@@ -228,7 +230,7 @@ struct rxi_db_molecule_coll_part
 
 /// @brief TODO
 RXI_STAT rxi_db_molecule_coll_part_malloc (
-    struct rxi_db_molecule_coll_part **mol_cp, const size_t n_colparts,
+    struct rxi_db_molecule_coll_part **mol_cp, const size_t n_cp_trans,
     const size_t n_temps);
 
 /// @brief TODO

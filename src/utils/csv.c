@@ -61,8 +61,10 @@ rxi_csv_read_line (FILE *csv, void **buff)
   int i = 0;
   for (char *token = strtok (nline, ","); token; token = strtok (NULL, ","))
     {
-      memcpy (buff[i], nline, RXI_STRING_MAX);
+      memcpy (buff[i], token, RXI_STRING_MAX);
+      ++i;
     }
 
+  free (nline);
   return RXI_OK;
 }

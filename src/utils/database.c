@@ -780,7 +780,7 @@ rxi_db_read_molecule_info (const char *name,
   free ((void*)db_path);
   free (filename);
 
-  return RXI_ERR_ALLOC;
+  return RXI_OK;
 }
 
 RXI_STAT
@@ -815,7 +815,206 @@ rxi_db_read_molecule_enlev (const char *name,
       return RXI_ERR_FILE;
     }
 
+  char *buff[RXI_ELEMENTS_MAX];
+  for (size_t i = 0; i < RXI_ELEMENTS_MAX; ++i)
+    {
+      buff[i] = malloc (RXI_QNUM_MAX * sizeof (buff[i]));
+      CHECK (buff[i] && "Allocation error");
+      if (!buff[i])
+        {
+          free (filename);
+          fclose (enlev_csv);
+          for (size_t j = 0; j < i; ++j)
+            free (buff[j]);
+
+          return RXI_ERR_ALLOC;
+        }
+    }
+
+  int n = 0;
+  RXI_STAT stat;
+  for (stat = rxi_csv_read_line (enlev_csv, (void**)buff);
+       stat != RXI_FILE_END;
+       stat = rxi_csv_read_line (enlev_csv, (void**)buff))
+    {
+      if (stat != RXI_OK)
+        break;
+
+      mol_enl->level[n] = strtol (buff[0], NULL, 10);
+      gsl_vector_set (mol_enl->energy, n, strtod(buff[1], NULL));
+      gsl_vector_set (mol_enl->weight, n, strtod(buff[2], NULL));
+      strncpy (mol_enl->qnum[n], buff[3], RXI_QNUM_MAX);
+      ++n;
+    }
+
   fclose (enlev_csv);
   free (filename);
+  free (buff[0]);
+
+  if (stat != RXI_FILE_END)
+    return stat;
+
   return RXI_OK;
+}
+
+RXI_STAT
+rxi_db_read_molecule_radtr (const char *name,
+                            struct rxi_db_molecule_radtr *mol_radtr)
+{
+  char *filename = malloc (RXI_PATH_MAX * sizeof (*filename));
+  CHECK (filename && "Allocation error");
+  if (!filename)
+    return RXI_ERR_ALLOC;
+
+  const char *db_path = rxi_database_path ();
+  CHECK (db_path && "Allocation error");
+  if (!db_path)
+    {
+      free (filename);
+      return RXI_ERR_ALLOC;
+    }
+
+  strcpy (filename, db_path);
+  strcat (filename, name);
+  strcat (filename, "/radtr.csv");
+  free ((void*)db_path);
+
+  DEBUG ("Reading radtr from `%s'", filename);
+
+  FILE *radtr_csv = fopen (filename, "r");
+  CHECK (radtr_csv && "Error open file");
+  if (!radtr_csv)
+    {
+      free (filename);
+      return RXI_ERR_FILE;
+    }
+
+  char *buff[RXI_ELEMENTS_MAX];
+  for (size_t i = 0; i < RXI_ELEMENTS_MAX; ++i)
+    {
+      buff[i] = malloc (RXI_QNUM_MAX * sizeof (buff[i]));
+      CHECK (buff[i] && "Allocation error");
+      if (!buff[i])
+        {
+          free (filename);
+          fclose (radtr_csv);
+          for (size_t j = 0; j < i; ++j)
+            free (buff[j]);
+
+          return RXI_ERR_ALLOC;
+        }
+    }
+
+  int n = 0;
+  RXI_STAT stat;
+  for (stat = rxi_csv_read_line (radtr_csv, (void**)buff);
+       stat != RXI_FILE_END;
+       stat = rxi_csv_read_line (radtr_csv, (void**)buff))
+    {
+      if (stat != RXI_OK)
+        break;
+
+      mol_radtr->up[n] = strtol (buff[1], NULL, 10);
+      mol_radtr->low[n] = strtol (buff[2], NULL, 10);
+      gsl_vector_set (mol_radtr->einst, n, strtod(buff[3], NULL));
+      gsl_vector_set (mol_radtr->freq, n, strtod(buff[4], NULL));
+      gsl_vector_set (mol_radtr->up_en, n, strtod(buff[5], NULL));
+      ++n;
+    }
+
+  fclose (radtr_csv);
+  free (filename);
+  free (buff[0]);
+
+  if (stat != RXI_FILE_END)
+    return stat;
+
+  return RXI_OK;
+}
+
+RXI_STAT
+rxi_db_read_molecule_coll_part (const char *mol_name, const COLL_PART cp,
+    const size_t n_temps, struct rxi_db_molecule_coll_part *mol_cp)
+{
+  char *filename = malloc (RXI_PATH_MAX * sizeof (*filename));
+  CHECK (filename && "Allocation error");
+  if (!filename)
+    return RXI_ERR_ALLOC;
+
+  const char *db_path = rxi_database_path ();
+  CHECK (db_path && "Allocation error");
+  if (!db_path)
+    {
+      free (filename);
+      return RXI_ERR_ALLOC;
+    }
+
+  char *cp_name = numtoname (cp);
+  CHECK (cp_name && "Allocation error");
+  if (!cp_name)
+    {
+      free (filename);
+      free ((void*)db_path);
+      return RXI_ERR_ALLOC;
+    }
+
+  strcpy (filename, db_path);
+  strcat (filename, mol_name);
+  strcat (filename, "/");
+  strcat (filename, cp_name);
+  strcat (filename, ".csv");
+  free ((void*)db_path);
+  free (cp_name);
+
+  DEBUG ("Reading collision partner from `%s'", filename);
+
+  FILE *radtr_csv = fopen (filename, "r");
+  CHECK (radtr_csv && "Error open file");
+  if (!radtr_csv)
+    {
+      free (filename);
+      return RXI_ERR_FILE;
+    }
+
+  char *buff[RXI_ELEMENTS_MAX];
+  for (size_t i = 0; i < RXI_ELEMENTS_MAX; ++i)
+    {
+      buff[i] = malloc (RXI_QNUM_MAX * sizeof (buff[i]));
+      CHECK (buff[i] && "Allocation error");
+      if (!buff[i])
+        {
+          free (filename);
+          fclose (radtr_csv);
+          for (size_t j = 0; j < i; ++j)
+            free (buff[j]);
+
+          return RXI_ERR_ALLOC;
+        }
+    }
+
+  int n = 0;
+  RXI_STAT stat;
+  for (stat = rxi_csv_read_line (radtr_csv, (void**)buff);
+       stat != RXI_FILE_END;
+       stat = rxi_csv_read_line (radtr_csv, (void**)buff))
+    {
+      if (stat != RXI_OK)
+        break;
+
+      mol_cp->up[n] = strtol (buff[1], NULL, 10);
+      mol_cp->low[n] = strtol (buff[2], NULL, 10);
+      for (size_t i = 0; i < n_temps; ++i)
+        gsl_matrix_set (mol_cp->coll_rates, n, i, strtod (buff[i + 3], NULL));
+      ++n;
+    }
+
+  fclose (radtr_csv);
+  free (filename);
+  free (buff[0]);
+
+  if (stat != RXI_FILE_END)
+    return stat;
+
+  return RXI_OK;
+
 }
