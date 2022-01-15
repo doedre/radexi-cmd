@@ -841,8 +841,8 @@ rxi_db_read_molecule_enlev (const char *name,
         break;
 
       mol_enl->level[n] = strtol (buff[0], NULL, 10);
-      gsl_vector_set (mol_enl->energy, n, strtod(buff[1], NULL));
-      gsl_vector_set (mol_enl->weight, n, strtod(buff[2], NULL));
+      mol_enl->term[n] = strtod(buff[1], NULL);
+      mol_enl->weight[n] = strtod(buff[2], NULL);
       strncpy (mol_enl->qnum[n], buff[3], RXI_QNUM_MAX);
       ++n;
     }
@@ -916,9 +916,9 @@ rxi_db_read_molecule_radtr (const char *name,
 
       mol_radtr->up[n] = strtol (buff[1], NULL, 10);
       mol_radtr->low[n] = strtol (buff[2], NULL, 10);
-      gsl_vector_set (mol_radtr->einst, n, strtod(buff[3], NULL));
-      gsl_vector_set (mol_radtr->freq, n, strtod(buff[4], NULL));
-      gsl_vector_set (mol_radtr->up_en, n, strtod(buff[5], NULL));
+      mol_radtr->einst[n] = strtod(buff[3], NULL);
+      mol_radtr->freq[n] = strtod(buff[4], NULL);
+      mol_radtr->up_en[n] = strtod(buff[5], NULL);
       ++n;
     }
 

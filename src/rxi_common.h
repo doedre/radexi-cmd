@@ -190,10 +190,10 @@ void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
 /// @brief Holds energy level information from database.
 struct rxi_db_molecule_enlev
 {
-  int   *level;
-  gsl_vector *energy;
-  gsl_vector *weight;
-  char  **qnum;
+  int     *level;
+  double  *term;
+  double  *weight;
+  char    **qnum;
 };
 
 /// @brief Memory allocation for `struct rxi_db_molecule_enlev`.
@@ -206,11 +206,11 @@ void rxi_db_molecule_enlev_free (struct rxi_db_molecule_enlev *mol_enl);
 /// @brief Holds radiative transfer information from database.
 struct rxi_db_molecule_radtr
 {
-  int   *up;
-  int   *low;
-  gsl_vector *einst;
-  gsl_vector *freq;
-  gsl_vector *up_en;
+  int     *up;
+  int     *low;
+  double  *einst;
+  double  *freq;
+  double  *up_en;
 };
 
 /// @brief TODO
@@ -235,5 +235,26 @@ RXI_STAT rxi_db_molecule_coll_part_malloc (
 
 /// @brief TODO
 void rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp);
+
+/// @brief TODO
+struct rxi_calc_data
+{
+  gsl_vector *term;
+  gsl_vector *weight;
+  gsl_matrix *einst;
+  gsl_matrix *energy;
+  gsl_matrix *rates;
+  gsl_vector *tot_rates;
+
+  gsl_vector *pop;
+  gsl_vector *tau;
+};
+
+/// @brief TODO
+RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
+                               const size_t n_enlev, const size_t n_radtr);
+
+/// @brief TODO
+void rxi_calc_data_free (struct rxi_calc_data *calc_data);
 
 #endif  // RXI_COMMON_H

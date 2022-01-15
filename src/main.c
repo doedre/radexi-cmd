@@ -106,8 +106,8 @@ usage_dialogue (const struct rxi_options *opts)
   for (int i = 0; i < mol_info->numof_enlev; ++i)
     {
       DEBUG ("%d : Level: %d | Weight: %.3f | Energy: %.3f | Qnum: %s", i,
-             mol_enl->level[i], gsl_vector_get (mol_enl->weight, i),
-             gsl_vector_get (mol_enl->energy, i), mol_enl->qnum[i]);
+             mol_enl->level[i], mol_enl->weight[i],mol_enl->term[i],
+             mol_enl->qnum[i]);
     }
 
   struct rxi_db_molecule_radtr *mol_rt;
@@ -117,10 +117,9 @@ usage_dialogue (const struct rxi_options *opts)
   DEBUG ("Molecule radtr parameters were read");
   for (int i = 0; i < mol_info->numof_radtr; ++i)
     {
-      DEBUG ("%d : Up: %d | Low: %d | Einst: %.3f | Freq: %.3f | Eu: %.3f", i,
-             mol_rt->up[i], mol_rt->low[i], gsl_vector_get (mol_rt->einst, i),
-             gsl_vector_get (mol_rt->freq, i),
-             gsl_vector_get (mol_rt->up_en, i));
+      DEBUG ("%d : Up: %d | Low: %d | Einst: %.3e | Freq: %.3f | Eu: %.3f", i,
+             mol_rt->up[i], mol_rt->low[i], mol_rt->einst[i],
+             mol_rt->freq[i], mol_rt->up_en[i]);
     }
 
   struct rxi_db_molecule_coll_part *mol_cp;

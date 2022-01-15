@@ -128,7 +128,7 @@ rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
       goto malloc_error;
     }
 
-  gsl_vector *energy = gsl_vector_calloc (n_enlev);
+  double *energy = malloc (n_enlev * sizeof (*energy));
   CHECK (energy && "Allocation error");
   if (!energy)
     {
@@ -137,18 +137,18 @@ rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
       goto malloc_error;
     }
 
-  gsl_vector *weight = gsl_vector_calloc (n_enlev);
+  double *weight = malloc (n_enlev * sizeof (*energy));
   CHECK (weight && "Allocation error");
   if (!weight)
     {
       free (me);
       free (level);
-      gsl_vector_free (energy);
+      free (energy);
       goto malloc_error;
     }
 
   me->level = level;
-  me->energy = energy;
+  me->term = energy;
   me->weight = weight;
   me->qnum = qnum;
 
@@ -166,8 +166,8 @@ rxi_db_molecule_enlev_free (struct rxi_db_molecule_enlev *mol_enl)
 {
   DEBUG ("Free memory for enlev");
   free (mol_enl->level);
-  gsl_vector_free (mol_enl->energy);
-//  gsl_vector_free (mol_enl->weight);
+  free (mol_enl->term);
+  free (mol_enl->weight);
   free (mol_enl->qnum);
   free (mol_enl);
 }
@@ -199,7 +199,7 @@ rxi_db_molecule_radtr_malloc (struct rxi_db_molecule_radtr **mol_rat,
       goto malloc_error;
     }
 
-  gsl_vector *einst = gsl_vector_calloc (n_radtr);
+  double *einst = malloc (n_radtr);
   CHECK (einst && "Allocation error");
   if (!einst)
     {
@@ -209,26 +209,26 @@ rxi_db_molecule_radtr_malloc (struct rxi_db_molecule_radtr **mol_rat,
       goto malloc_error;
     }
 
-  gsl_vector *freq = gsl_vector_calloc (n_radtr);
+  double *freq = malloc (n_radtr);
   CHECK (freq && "Allocation error");
   if (!freq)
     {
       free (mr);
       free (up);
       free (low);
-      gsl_vector_free (einst);
+      free (einst);
       goto malloc_error;
     }
 
-  gsl_vector *up_en = gsl_vector_calloc (n_radtr);
+  double *up_en = malloc (n_radtr);
   CHECK (up_en && "Allocation error");
   if (!up_en)
     {
       free (mr);
       free (up);
       free (low);
-      gsl_vector_free (einst);
-      gsl_vector_free (freq);
+      free (einst);
+      free (freq);
       goto malloc_error;
     }
 
@@ -253,9 +253,9 @@ rxi_db_molecule_radtr_free (struct rxi_db_molecule_radtr *mol_rat)
 
   free (mol_rat->up);
   free (mol_rat->low);
-  gsl_vector_free (mol_rat->einst);
-  gsl_vector_free (mol_rat->freq);
-//  gsl_vector_free (mol_rat->up_en);
+  free (mol_rat->einst);
+  free (mol_rat->freq);
+  free (mol_rat->up_en);
   free (mol_rat);
 }
 
@@ -317,4 +317,105 @@ rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp)
   free (mol_cp->low);
   gsl_matrix_free (mol_cp->coll_rates);
   free (mol_cp);
+}
+
+RXI_STAT
+rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
+                      const size_t n_radtr)
+{
+  DEBUG ("Allocation memory for calculation data structure");
+  struct rxi_calc_data *cd = malloc (sizeof (*cd));
+  CHECK (cd && "Allocation error");
+  if (!cd)
+    goto malloc_error;
+
+  gsl_vector *term = gsl_vector_calloc (n_enlev);
+  CHECK (term && "Allocation error");
+  if (!term)
+    {
+      free (cd);
+      goto malloc_error;
+    }
+
+  gsl_vector *weight = gsl_vector_calloc (n_enlev);
+  CHECK (weight && "Allocation error");
+  if (!weight)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      goto malloc_error;
+    }
+
+  gsl_matrix *einst = gsl_matrix_calloc (n_radtr, n_radtr);
+  CHECK (einst && "Allocation error");
+  if (!einst)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      gsl_vector_free (weight);
+      goto malloc_error;
+    }
+
+  gsl_matrix *energy = gsl_matrix_calloc (n_radtr, n_radtr);
+  CHECK (energy && "Allocation error");
+  if (!energy)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      gsl_vector_free (weight);
+      gsl_matrix_free (einst);
+      goto malloc_error;
+    }
+
+  gsl_matrix *rates = gsl_matrix_calloc (n_radtr, n_radtr);
+  CHECK (rates && "Allocation error");
+  if (!rates)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      gsl_vector_free (weight);
+      gsl_matrix_free (einst);
+      gsl_matrix_free (energy);
+      goto malloc_error;
+    }
+
+  gsl_vector *tot_rates = gsl_vector_calloc (n_radtr);
+  CHECK (tot_rates && "Allocation error");
+  if (!tot_rates)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      gsl_vector_free (weight);
+      gsl_matrix_free (einst);
+      gsl_matrix_free (energy);
+      gsl_matrix_free (rates);
+      goto malloc_error;
+    }
+
+  cd->term = term;
+  cd->weight = weight;
+  cd->einst = einst;
+  cd->energy = energy;
+  cd->rates = rates;
+  cd->tot_rates = tot_rates;
+
+  *calc_data = cd;
+
+  return RXI_OK;
+
+malloc_error:
+  *calc_data = NULL;
+  return RXI_ERR_ALLOC;
+}
+
+void
+rxi_calc_data_free (struct rxi_calc_data *calc_data)
+{
+  DEBUG ("Free memory for calculation data structure");
+  gsl_vector_free (calc_data->term);
+  gsl_vector_free (calc_data->weight);
+  gsl_matrix_free (calc_data->einst);
+  gsl_matrix_free (calc_data->energy);
+  gsl_matrix_free (calc_data->rates);
+  gsl_vector_free (calc_data->tot_rates);
 }
