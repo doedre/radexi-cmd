@@ -10,6 +10,7 @@
 #include <stdbool.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
+#include <gsl/gsl_const_cgsm.h>
 
 #define RXI_PATH_MAX 1024
 #define RXI_STRING_MAX 512
@@ -20,6 +21,13 @@
 #define RXI_COLL_PARTNERS_MAX 7
 
 #define RXI_ELEMENTS_MAX RXI_COLL_TEMPS_MAX + 3
+
+#define RXI_FK                                                                \
+        GSL_CONST_CGSM_PLANCKS_CONSTANT_H * GSL_CONST_CGSM_SPEED_OF_LIGHT     \
+        / GSL_CONST_CGSM_BOLTZMANN
+
+#define RXI_HP GSL_CONST_CGSM_PLANCKS_CONSTANT_H
+#define RXI_SOL GSL_CONST_CGSM_SPEED_OF_LIGHT
 
 /// @brief Status codes for functions that may fail.
 ///
@@ -157,6 +165,7 @@ struct rxi_input_data
   double line_width;
   GEOMETRY geom;
   int8_t n_coll_partners;
+
   COLL_PART coll_part[RXI_COLL_PARTNERS_MAX];
   double coll_part_dens[RXI_COLL_PARTNERS_MAX];
 };
@@ -177,10 +186,10 @@ struct rxi_db_molecule_info
 };
 
 /// @brief TODO
-RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info *mol_info);
+RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info);
 
 /// @brief TODO
-void rxi_db_molecule_info_free (struct rxi_db_molecule_info mol_info);
+void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
 
 /// @brief Holds energy level information from database.
 struct rxi_db_molecule_enlev
@@ -234,29 +243,40 @@ void rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp);
 
 struct rxi_db_molecule
 {
-  struct rxi_db_molecule_info   info;
-  struct rxi_db_molecule_enlev  enlev;
-  struct rxi_db_molecule_radtr  radtr;
-  struct rxi_db_molecule_coll_part *coll_part;
+  struct rxi_db_molecule_info   *info;
+  struct rxi_db_molecule_enlev  *enlev;
+  struct rxi_db_molecule_radtr  *radtr;
+  struct rxi_db_molecule_coll_part **coll_part;
 };
 
 /// @brief TODO
 struct rxi_calc_data
 {
+  double *temp_kin;
+  double *temp_bg;
+  double *col_dens;
+  double *line_width;
+  GEOMETRY *geom;
+  int *up;
+  int *low;
+
   gsl_vector *term;
   gsl_vector *weight;
   gsl_matrix *einst;
   gsl_matrix *energy;
-  gsl_matrix *rates;
+  gsl_matrix *coll_rates;
   gsl_vector *tot_rates;
+  gsl_matrix *bgfield;
 
+  gsl_matrix *rates;
   gsl_vector *pop;
-  gsl_vector *tau;
+  gsl_matrix *tau;
+  gsl_matrix *exit_temp;
 };
 
 /// @brief TODO
 RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
-                               const size_t n_enlev, const size_t n_radtr);
+                               const size_t n_enlev);
 
 /// @brief TODO
 void rxi_calc_data_free (struct rxi_calc_data *calc_data);

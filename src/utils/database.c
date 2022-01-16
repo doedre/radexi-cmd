@@ -395,7 +395,7 @@ rxi_add_molecule (const char *name, const char *path)
     }
 
   // LAMDA database file parsing starts here
-  struct rxi_db_molecule_info mol_info;
+  struct rxi_db_molecule_info *mol_info;
   status = rxi_db_molecule_info_malloc (&mol_info);
   CHECK ((status == RXI_OK) && "Allocation error");
   if (status != RXI_OK)
@@ -409,41 +409,41 @@ rxi_add_molecule (const char *name, const char *path)
   do
     {
       // Saving header
-      status = rxi_save_molecule_info (molfile, &mol_info, 0);
+      status = rxi_save_molecule_info (molfile, mol_info, 0);
       CHECK ((status == RXI_OK) && "Information file error");
       if (status != RXI_OK)
         break;
 
       // Writing energy levels information to enlev.csv
       status = rxi_add_molecule_csv (molfile, db_folder, "enlev.csv",
-                                     mol_info.numof_enlev);
+                                     mol_info->numof_enlev);
       CHECK ((status == RXI_OK) && "Energy levels file error");
       if (status != RXI_OK)
         break;
 
       // Saving number of radiation transitions
-      status = rxi_save_molecule_info (molfile, &mol_info, 0);
+      status = rxi_save_molecule_info (molfile, mol_info, 0);
       CHECK ((status == RXI_OK) && "Information file error");
       if (status != RXI_OK)
         break;
 
       // Writing radiation transitions info to radtr.csv
       status = rxi_add_molecule_csv (molfile, db_folder, "radtr.csv",
-                                     mol_info.numof_radtr);
+                                     mol_info->numof_radtr);
       CHECK ((status == RXI_OK) && "Radiative transition file error");
       if (status != RXI_OK)
         break;
 
       // Saving first collisional partner information
-      status = rxi_save_molecule_info (molfile, &mol_info, 0);
+      status = rxi_save_molecule_info (molfile, mol_info, 0);
       CHECK ((status == RXI_OK) && "Information file error");
       if (status != RXI_OK)
         break;
 
       // Cycle to loop through collisional transitions
-      for (int8_t i = 0; i < mol_info.numof_coll_part; ++i)
+      for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
         {
-          char *cp_name = numtoname (mol_info.coll_part[i]);
+          char *cp_name = numtoname (mol_info->coll_part[i]);
           if (!cp_name)
             {
               status = RXI_WARN_LAMDA;
@@ -453,12 +453,12 @@ rxi_add_molecule (const char *name, const char *path)
 
           // Writing collisional partners information to specified file
           status = rxi_add_molecule_csv (molfile, db_folder, cp_name,
-              mol_info.numof_coll_trans[i]);
+              mol_info->numof_coll_trans[i]);
           CHECK ((status == RXI_OK) && "Colision partner file error");
           if (status != RXI_OK)
             break;
 
-          status = rxi_save_molecule_info (molfile, &mol_info, i + 1);
+          status = rxi_save_molecule_info (molfile, mol_info, i + 1);
           CHECK ((status == RXI_OK) && "Information file error");
           if (status != RXI_OK)
             break;
@@ -466,7 +466,7 @@ rxi_add_molecule (const char *name, const char *path)
           free (cp_name);
         }
 
-      status = rxi_add_molecule_info (db_folder, name, &mol_info);
+      status = rxi_add_molecule_info (db_folder, name, mol_info);
       CHECK ((status == RXI_OK) && "Information file error");
     }
   while (false);

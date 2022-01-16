@@ -362,7 +362,7 @@ get_collision_partners (struct rxi_input_data *inp_data)
   CHECK ((status == RXI_OK) && "Can't load history file");
 
   status = RXI_OK;
-  struct rxi_db_molecule_info mol_info;
+  struct rxi_db_molecule_info *mol_info;
   status = rxi_db_molecule_info_malloc (&mol_info);
   CHECK ((status == RXI_OK) && "Allocation error");
   if (status != RXI_OK)
@@ -371,7 +371,7 @@ get_collision_partners (struct rxi_input_data *inp_data)
       return status;
     }
 
-  status = rxi_db_read_molecule_info (inp_data->name, &mol_info);
+  status = rxi_db_read_molecule_info (inp_data->name, mol_info);
   CHECK ((status == RXI_OK) && "Info file error");
   /*if (status != RXI_OK)
     {
@@ -390,7 +390,7 @@ get_collision_partners (struct rxi_input_data *inp_data)
       for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
         {
           DEBUG ("Checking collision partners");
-          if (!check_coll_partner (inp_data->coll_part[i], &mol_info))
+          if (!check_coll_partner (inp_data->coll_part[i], mol_info))
             {
               print_dialog_error ();
               is_written = false;
@@ -449,7 +449,7 @@ rxi_dialog_input (struct rxi_input_data *inp_data,
 
   printf ("   ## Enter line width\n");
 
-  status = get_line_width (&inp_data->col_dens);
+  status = get_line_width (&inp_data->line_width);
   CHECK ((status == RXI_OK) && "Error getting line width");
 
   printf ("   ## Enter geometry\n");

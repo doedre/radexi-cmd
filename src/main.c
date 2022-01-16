@@ -95,8 +95,26 @@ usage_dialogue (const struct rxi_options *opts)
   CHECK ((stat == RXI_OK) && "Dialog errors");
   DEBUG ("Name: %s, cp: %u", inp_data->name, inp_data->coll_part[0]);
 
-  stat = rxi_calc_data_init (inp_data);
-  CHECK ((stat == RXI_OK));
+  struct rxi_db_molecule_info *info;
+  stat = rxi_db_molecule_info_malloc (&info);
+  CHECK ((stat == RXI_OK) && "Info memory allocation error");
+  stat = rxi_db_read_molecule_info (inp_data->name, info);
+  CHECK ((stat == RXI_OK) && "Info file error");
+
+  struct rxi_calc_data *calc_data;
+  stat = rxi_calc_data_malloc (&calc_data, info->numof_enlev);
+  CHECK ((stat == RXI_OK) && "Calculation data memory allocation error");
+  stat = rxi_calc_data_init (calc_data, inp_data, info);
+  CHECK ((stat == RXI_OK) && "Calculation data initialization error");
+
+  stat = rxi_calc_find_rates (calc_data, info->numof_enlev, info->numof_radtr);
+
+  for (int i = 0; i < info->numof_radtr; ++i)
+    {
+      int u = calc_data->up[i] - 1;
+      int l = calc_data->low[i] - 1;
+      DEBUG ("%d %d: %.3e  ", u, l, gsl_matrix_get (calc_data->tau, u, l));
+    }
 
   return stat;
 }
