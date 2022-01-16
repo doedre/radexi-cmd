@@ -57,55 +57,84 @@ rxi_config_path ()
 }
 
 RXI_STAT
-rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info)
+rxi_db_molecule_info_malloc (struct rxi_db_molecule_info *mol_info)
 {
-  struct rxi_db_molecule_info *mi = malloc (sizeof (*mi));
-  CHECK (mi);
-  if (!mi)
-    goto malloc_error;
-
   char *name = malloc (RXI_STRING_MAX * sizeof (*name));
-  CHECK (name);
+  CHECK (name && "Allocation error");
   if (!name)
+    return RXI_ERR_ALLOC;
+
+  COLL_PART *coll_part = malloc (RXI_COLL_PARTNERS_MAX * sizeof (*coll_part));
+  CHECK (coll_part && "Allocation error");
+  if (!coll_part)
     {
-      free (mi);
-      goto malloc_error;
+      free (name);
+      return RXI_ERR_ALLOC;
     }
 
-  mi->name = name;
-  *mol_info = mi;
+  int *numof_coll_trans = malloc (RXI_COLL_PARTNERS_MAX
+                                  * sizeof (*numof_coll_trans));
+  CHECK (numof_coll_trans && "Allocation error");
+  if (!numof_coll_trans)
+    {
+      free (name);
+      free (coll_part);
+      return RXI_ERR_ALLOC;
+    }
+
+  int8_t *numof_coll_temps = malloc (RXI_COLL_PARTNERS_MAX
+                                     * sizeof (*numof_coll_temps));
+  CHECK (numof_coll_temps && "Allocation error");
+  if (!numof_coll_temps)
+    {
+      free (name);
+      free (coll_part);
+      free (numof_coll_trans);
+      return RXI_ERR_ALLOC;
+    }
+
+  gsl_matrix *coll_temps = gsl_matrix_calloc (RXI_COLL_PARTNERS_MAX,
+                                              RXI_COLL_TEMPS_MAX);
+  CHECK (coll_temps && "Allocation error");
+  if (!coll_temps)
+    {
+      free (name);
+      free (coll_part);
+      free (numof_coll_trans);
+      free (numof_coll_temps);
+      return RXI_ERR_ALLOC;
+    }
+
+  mol_info->name = name;
+  mol_info->coll_part = coll_part;
+  mol_info->numof_coll_trans = numof_coll_trans;
+  mol_info->numof_coll_temps = numof_coll_temps;
+  mol_info->coll_temps = coll_temps;
 
   return RXI_OK;
-
-malloc_error:
-  *mol_info = NULL;
-  return RXI_ERR_ALLOC;
 }
 
 void
-rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info)
+rxi_db_molecule_info_free (struct rxi_db_molecule_info mol_info)
 {
-  free (mol_info->name);
-  free (mol_info);
+  free (mol_info.name);
+  free (mol_info.coll_part);
+  free (mol_info.numof_coll_trans);
+  free (mol_info.numof_coll_temps);
+  gsl_matrix_free (mol_info.coll_temps);
 }
 
 RXI_STAT
-rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
+rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev *mol_enl,
                               const size_t n_enlev)
 {
   DEBUG ("Allocating memory for enlev");
-  struct rxi_db_molecule_enlev *me = malloc (sizeof (*me));
-  CHECK (me && "Allocation error");
-  if (!me)
-    goto malloc_error;
 
   char **qnum = malloc (n_enlev * sizeof (*qnum));
   CHECK (*qnum && "Allocation error");
   if (!*qnum)
-    {
-      free (me);
       goto malloc_error;
-    }
+
   for (size_t i = 0; i < n_enlev; ++i)
     {
       qnum[i] = malloc (RXI_QNUM_MAX * sizeof (qnum[i]));
@@ -346,7 +375,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
       goto malloc_error;
     }
 
-  gsl_matrix *einst = gsl_matrix_calloc (n_radtr, n_radtr);
+  gsl_matrix *einst = gsl_matrix_calloc (n_enlev, n_enlev);
   CHECK (einst && "Allocation error");
   if (!einst)
     {
@@ -356,7 +385,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
       goto malloc_error;
     }
 
-  gsl_matrix *energy = gsl_matrix_calloc (n_radtr, n_radtr);
+  gsl_matrix *energy = gsl_matrix_calloc (n_enlev, n_enlev);
   CHECK (energy && "Allocation error");
   if (!energy)
     {
@@ -367,7 +396,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
       goto malloc_error;
     }
 
-  gsl_matrix *rates = gsl_matrix_calloc (n_radtr, n_radtr);
+  gsl_matrix *rates = gsl_matrix_calloc (n_enlev, n_enlev);
   CHECK (rates && "Allocation error");
   if (!rates)
     {
@@ -379,7 +408,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
       goto malloc_error;
     }
 
-  gsl_vector *tot_rates = gsl_vector_calloc (n_radtr);
+  gsl_vector *tot_rates = gsl_vector_calloc (n_enlev);
   CHECK (tot_rates && "Allocation error");
   if (!tot_rates)
     {

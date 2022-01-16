@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <gsl/gsl_matrix.h>
 
 #include "utils/database.h"
 
@@ -119,10 +120,9 @@ rxi_save_molecule_info (FILE *molfile,
           if (!fgets (line, RXI_STRING_MAX, molfile))
             goto file_error;
 
-          molecule_info->coll_partners[n_partner].coll_part
-              = strtol (&line[0], NULL, 10);
+          molecule_info->coll_part[n_partner] = strtol (&line[0], NULL, 10);
 
-          if (molecule_info->coll_partners[n_partner].coll_part == 0)
+          if (molecule_info->coll_part[n_partner] == 0)
             goto conversion_error;
         }
       else if (!strncmp (line, "!numberofcolltrans", 18)
@@ -131,10 +131,9 @@ rxi_save_molecule_info (FILE *molfile,
           if (!fgets (line, RXI_STRING_MAX, molfile))
             goto file_error;
 
-          molecule_info->coll_partners[n_partner].numof_coll_trans
-              = strtol (line, NULL, 10);
+          molecule_info->numof_coll_trans[n_partner] = strtol (line, NULL, 10);
 
-          if (molecule_info->coll_partners[n_partner].numof_coll_trans == 0)
+          if (molecule_info->numof_coll_trans[n_partner] == 0)
             goto conversion_error;
         }
       else if (!strncmp (line, "!numberofcolltemps", 18)
@@ -144,10 +143,9 @@ rxi_save_molecule_info (FILE *molfile,
           if (!fgets (line, RXI_STRING_MAX, molfile))
             goto file_error;
 
-          molecule_info->coll_partners[n_partner].numof_coll_temps
-              = strtol (line, NULL, 10);
+          molecule_info->numof_coll_temps[n_partner] = strtol (line, NULL, 10);
 
-          if (molecule_info->coll_partners[n_partner].numof_coll_temps == 0)
+          if (molecule_info->numof_coll_temps[n_partner] == 0)
             goto conversion_error;
         }
       else if (!strncmp (line, "!colltemps", 10)
@@ -170,11 +168,11 @@ rxi_save_molecule_info (FILE *molfile,
 
               start = end;
               DEBUG ("Number for writing: %f", f);
-              molecule_info->coll_partners[n_partner].coll_temps[i] = f;
+              gsl_matrix_set (molecule_info->coll_temps, n_partner, i, f);
               ++i;
             }
 
-          if (molecule_info->coll_partners[n_partner].numof_coll_temps != i)
+          if (molecule_info->numof_coll_temps[n_partner] != i)
             status = RXI_WARN_LAMDA;
         }
       else 
@@ -205,8 +203,8 @@ check_db_molecule_info (const struct rxi_db_molecule_info *mol_info)
       || mol_info->numof_radtr == 0 || mol_info->numof_coll_part == 0)
     return RXI_WARN_LAMDA;
 
-  if (mol_info->coll_partners[0].numof_coll_temps == 0
-      || mol_info->coll_partners[0].numof_coll_trans == 0)
+  if (mol_info->numof_coll_temps[0] == 0
+      || mol_info->numof_coll_trans[0] == 0)
     return RXI_WARN_LAMDA;
 
   return RXI_OK;
@@ -244,7 +242,7 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
 
   for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
     {
-      char *cp_name = numtoname (mol_info->coll_partners[i].coll_part);
+      char *cp_name = numtoname (mol_info->coll_part[i]);
       if (!cp_name)
         {
           free (info_filename);
@@ -255,9 +253,9 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
       sprintf (section_name, "Partner %d", i + 1);
       ini_stat += !ini_puts (section_name, "partner", cp_name, info_filename);
       ini_stat += !ini_putl (section_name, "collisional_transitions",
-          mol_info->coll_partners[i].numof_coll_trans, info_filename);
+          mol_info->numof_coll_trans[i], info_filename);
       ini_stat += !ini_putl (section_name, "collisional_temperatures",
-          mol_info->coll_partners[i].numof_coll_temps, info_filename);
+          mol_info->numof_coll_temps[i], info_filename);
       
       char *temps = malloc (RXI_STRING_MAX * sizeof (*temps));
       if (!temps)
@@ -268,10 +266,11 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
           return RXI_ERR_ALLOC;
         }
 
-      for (int8_t j = 0; j < mol_info->coll_partners[i].numof_coll_temps; ++j)
+      for (int8_t j = 0; j < mol_info->numof_coll_temps[i]; ++j)
         {
           char *t = malloc (9 * sizeof (*t));
-          snprintf (t, 9, "%8.2f ", mol_info->coll_partners[i].coll_temps[j]);
+          snprintf (t, 9, "%8.2f ",
+                    gsl_matrix_get (mol_info->coll_temps, i, j));
           memcpy (temps + 8 * j, t, 9);
           free (t);
         }
@@ -396,7 +395,7 @@ rxi_add_molecule (const char *name, const char *path)
     }
 
   // LAMDA database file parsing starts here
-  struct rxi_db_molecule_info *mol_info;
+  struct rxi_db_molecule_info mol_info;
   status = rxi_db_molecule_info_malloc (&mol_info);
   CHECK ((status == RXI_OK) && "Allocation error");
   if (status != RXI_OK)
@@ -410,41 +409,41 @@ rxi_add_molecule (const char *name, const char *path)
   do
     {
       // Saving header
-      status = rxi_save_molecule_info (molfile, mol_info, 0);
+      status = rxi_save_molecule_info (molfile, &mol_info, 0);
       CHECK ((status == RXI_OK) && "Information file error");
       if (status != RXI_OK)
         break;
 
       // Writing energy levels information to enlev.csv
       status = rxi_add_molecule_csv (molfile, db_folder, "enlev.csv",
-                                     mol_info->numof_enlev);
+                                     mol_info.numof_enlev);
       CHECK ((status == RXI_OK) && "Energy levels file error");
       if (status != RXI_OK)
         break;
 
       // Saving number of radiation transitions
-      status = rxi_save_molecule_info (molfile, mol_info, 0);
+      status = rxi_save_molecule_info (molfile, &mol_info, 0);
       CHECK ((status == RXI_OK) && "Information file error");
       if (status != RXI_OK)
         break;
 
       // Writing radiation transitions info to radtr.csv
       status = rxi_add_molecule_csv (molfile, db_folder, "radtr.csv",
-                                     mol_info->numof_radtr);
+                                     mol_info.numof_radtr);
       CHECK ((status == RXI_OK) && "Radiative transition file error");
       if (status != RXI_OK)
         break;
 
       // Saving first collisional partner information
-      status = rxi_save_molecule_info (molfile, mol_info, 0);
+      status = rxi_save_molecule_info (molfile, &mol_info, 0);
       CHECK ((status == RXI_OK) && "Information file error");
       if (status != RXI_OK)
         break;
 
       // Cycle to loop through collisional transitions
-      for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
+      for (int8_t i = 0; i < mol_info.numof_coll_part; ++i)
         {
-          char *cp_name = numtoname (mol_info->coll_partners[i].coll_part);
+          char *cp_name = numtoname (mol_info.coll_part[i]);
           if (!cp_name)
             {
               status = RXI_WARN_LAMDA;
@@ -454,12 +453,12 @@ rxi_add_molecule (const char *name, const char *path)
 
           // Writing collisional partners information to specified file
           status = rxi_add_molecule_csv (molfile, db_folder, cp_name,
-              mol_info->coll_partners[i].numof_coll_trans);
+              mol_info.numof_coll_trans[i]);
           CHECK ((status == RXI_OK) && "Colision partner file error");
           if (status != RXI_OK)
             break;
 
-          status = rxi_save_molecule_info (molfile, mol_info, i + 1);
+          status = rxi_save_molecule_info (molfile, &mol_info, i + 1);
           CHECK ((status == RXI_OK) && "Information file error");
           if (status != RXI_OK)
             break;
@@ -467,7 +466,7 @@ rxi_add_molecule (const char *name, const char *path)
           free (cp_name);
         }
 
-      status = rxi_add_molecule_info (db_folder, name, mol_info);
+      status = rxi_add_molecule_info (db_folder, name, &mol_info);
       CHECK ((status == RXI_OK) && "Information file error");
     }
   while (false);
@@ -647,6 +646,22 @@ nametonum (const char *name)
   return result;
 }
 
+int8_t
+cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp)
+{
+  int8_t number = 0;
+  for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
+    {
+      if (mol_info->coll_part[i] == cp)
+        {
+          number = i;
+          break;
+        }
+    }
+
+  return number;
+}
+
 int
 rxi_db_molecule_iter (DIR *dir, char *name)
 {
@@ -744,20 +759,20 @@ rxi_db_read_molecule_info (const char *name,
       sprintf (section_name, "Partner %d", i + 1);
       ini_gets (section_name, "partner", "no_name", cp_name, RXI_STRING_MAX,
                 filename);
-      mol_info->coll_partners[i].coll_part = nametonum (cp_name);
+      mol_info->coll_part[i] = nametonum (cp_name);
       DEBUG ("%d collision partner name: %s -> %d", i, cp_name,
-             mol_info->coll_partners[i].coll_part);
+             mol_info->coll_part[i]);
       free (cp_name);
 
-      mol_info->coll_partners[i].numof_coll_trans = ini_getl (section_name,
+      mol_info->numof_coll_trans[i] = ini_getl (section_name,
           "collisional_transitions", 0, filename);
       DEBUG ("%d number of collisional transitions: %d", i,
-             mol_info->coll_partners[i].numof_coll_trans);
+             mol_info->numof_coll_trans[i]);
 
-      mol_info->coll_partners[i].numof_coll_temps = ini_getl (section_name,
+      mol_info->numof_coll_temps[i] = ini_getl (section_name,
           "collisional_temperatures", 0, filename);
       DEBUG ("%d number of collisional temperatures: %d", i,
-             mol_info->coll_partners[i].numof_coll_temps);
+             mol_info->numof_coll_temps[i]);
 
       char *start = malloc (RXI_STRING_MAX * sizeof (*start));
       ini_gets (section_name, "temperatures", "no_temps", start,
@@ -769,8 +784,9 @@ rxi_db_read_molecule_info (const char *name,
            f = strtof (start, &end))
         {
           start = end;
-          mol_info->coll_partners[i].coll_temps[j] = f;
-          DEBUG ("%d temperature: %f", i, f);
+          gsl_matrix_set (mol_info->coll_temps, i, j, f);
+          DEBUG ("%d temperature: %f", i,
+                 gsl_matrix_get (mol_info->coll_temps, i, j));
           ++j;
         }
 

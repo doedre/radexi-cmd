@@ -338,8 +338,8 @@ check_coll_partner (COLL_PART cp,
   for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
     {
       DEBUG ("Comparing collision partners %u and %u: ", cp,
-             mol_info->coll_partners[i].coll_part);
-      if (cp == mol_info->coll_partners[i].coll_part)
+             mol_info->coll_part[i]);
+      if (cp == mol_info->coll_part[i])
         {
           result = true;
           break;
@@ -362,7 +362,7 @@ get_collision_partners (struct rxi_input_data *inp_data)
   CHECK ((status == RXI_OK) && "Can't load history file");
 
   status = RXI_OK;
-  struct rxi_db_molecule_info *mol_info;
+  struct rxi_db_molecule_info mol_info;
   status = rxi_db_molecule_info_malloc (&mol_info);
   CHECK ((status == RXI_OK) && "Allocation error");
   if (status != RXI_OK)
@@ -371,7 +371,7 @@ get_collision_partners (struct rxi_input_data *inp_data)
       return status;
     }
 
-  status = rxi_db_read_molecule_info (inp_data->name, mol_info);
+  status = rxi_db_read_molecule_info (inp_data->name, &mol_info);
   CHECK ((status == RXI_OK) && "Info file error");
   /*if (status != RXI_OK)
     {
@@ -390,7 +390,7 @@ get_collision_partners (struct rxi_input_data *inp_data)
       for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
         {
           DEBUG ("Checking collision partners");
-          if (!check_coll_partner (inp_data->coll_part[i], mol_info))
+          if (!check_coll_partner (inp_data->coll_part[i], &mol_info))
             {
               print_dialog_error ();
               is_written = false;

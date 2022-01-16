@@ -161,31 +161,26 @@ struct rxi_input_data
   double coll_part_dens[RXI_COLL_PARTNERS_MAX];
 };
 
-/// @brief Information about collision partner from LAMDA database.
-struct rxi_db_molecule_coll_part_info
-{
-  COLL_PART coll_part;
-  int     numof_coll_trans;
-  int8_t  numof_coll_temps; 
-  float   coll_temps[RXI_COLL_TEMPS_MAX];
-};
-
 /// @brief Used to store molecular information from `*.info` file or LAMDA.
 struct rxi_db_molecule_info
 {
-  char  *name;
-  float weight;
-  int   numof_enlev;
-  int   numof_radtr;
-  int   numof_coll_part;
-  struct rxi_db_molecule_coll_part_info coll_partners[RXI_COLL_PARTNERS_MAX];
+  char    *name;
+  float   weight;
+  int     numof_enlev;
+  int     numof_radtr;
+  int     numof_coll_part;
+
+  COLL_PART *coll_part;
+  int     *numof_coll_trans;
+  int8_t  *numof_coll_temps; 
+  gsl_matrix *coll_temps;
 };
 
 /// @brief TODO
-RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info);
+RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info *mol_info);
 
 /// @brief TODO
-void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
+void rxi_db_molecule_info_free (struct rxi_db_molecule_info mol_info);
 
 /// @brief Holds energy level information from database.
 struct rxi_db_molecule_enlev
@@ -235,6 +230,15 @@ RXI_STAT rxi_db_molecule_coll_part_malloc (
 
 /// @brief TODO
 void rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp);
+
+
+struct rxi_db_molecule
+{
+  struct rxi_db_molecule_info   info;
+  struct rxi_db_molecule_enlev  enlev;
+  struct rxi_db_molecule_radtr  radtr;
+  struct rxi_db_molecule_coll_part *coll_part;
+};
 
 /// @brief TODO
 struct rxi_calc_data

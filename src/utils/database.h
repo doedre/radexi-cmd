@@ -22,6 +22,9 @@ char *numtoname (COLL_PART cp);
 /// @brief Converts string to collisional partner number.
 COLL_PART nametonum (const char *name);
 
+/// @brief Get number of specified collision partner from database info file.
+int8_t cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp);
+
 /// @brief Helps to iterate through local database molecule names.
 int rxi_db_molecule_iter (DIR *dir, char *name);
 
