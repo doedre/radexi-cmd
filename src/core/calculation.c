@@ -25,8 +25,15 @@ set_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       const unsigned int u = data->up[i] - 1;
       const unsigned int l = data->low[i] - 1;
 
-      double coef = RXI_FK * gsl_matrix_get(data->energy, u, l)
+      DEBUG ("sol: %.3e | xnu: %.3e | bgtemp: %.3e", RXI_FK,
+             gsl_matrix_get(data->energy, u, l), data->temp_bg[0]);
+      double coef = RXI_FK
+                    * (gsl_vector_get (data->term, u)
+                      - gsl_vector_get (data->term, l))
                     / data->temp_bg[0];
+
+      DEBUG ("u: %d | l: %d | ae: %.3e | coef: %.3e", u, l,
+              gsl_matrix_get (data->einst, u, l), coef);
 
       if (coef >= 160)
         coef = 0;
@@ -49,8 +56,6 @@ set_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       const double lu = gsl_matrix_get (data->rates, l, u)
                         - gsl_matrix_get (data->einst, u, l) * (1 + coef);
 
-      DEBUG ("coef: %.3e | uu: %.3e | ll: %.3e | ul: %.3e | lu: %.3e",
-             coef, uu, ll, ul, lu);
       gsl_matrix_set (data->rates, u, u, uu);
       gsl_matrix_set (data->rates, l, l, ll);
       gsl_matrix_set (data->rates, u, l, ul);
@@ -67,8 +72,10 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       const unsigned int u = data->up[i] - 1;
       const unsigned int l = data->low[i] - 1;
 
+      double energy = gsl_vector_get (data->term, u)
+                      - gsl_vector_get (data->term, l);
       const double tau = rxi_calc_optical_depth (data->col_dens[0],
-          data->line_width[0], gsl_matrix_get (data->energy, u, l),
+          data->line_width[0], energy,
           gsl_matrix_get (data->einst, u, l),
           gsl_vector_get (data->weight, u), gsl_vector_get (data->weight, l),
           gsl_vector_get (data->pop, u), gsl_vector_get (data->pop, l));
@@ -78,7 +85,7 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
 
       const double beta = rxi_calc_escape_prob (tau, data->geom[0]);
 
-      const double coef = gsl_pow_3 (gsl_matrix_get (data->energy, u, l)) *
+      const double coef = gsl_pow_3 (energy) *
               (gsl_matrix_get (data->bgfield, u, l) * beta)
           / //---------------------------------------------
                         (2 * RXI_HP * RXI_SOL);
@@ -99,14 +106,11 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       const double lu = gsl_matrix_get (data->rates, l, u)
                         - gsl_matrix_get (data->einst, u, l) * (beta + coef);
 
-      DEBUG ("coef: %.3e | uu: %.3e | ll: %.3e | ul: %.3e | lu: %.3e",
-             coef, uu, ll, ul, lu);
       gsl_matrix_set (data->rates, u, u, uu);
       gsl_matrix_set (data->rates, l, l, ll);
       gsl_matrix_set (data->rates, u, l, ul);
       gsl_matrix_set (data->rates, l, u, lu);
     }
-
   return thick_lines;
 }
 
@@ -336,6 +340,7 @@ rxi_calc_data_fill (const struct rxi_input_data *inp_data,
     {
       for (int j = 0; j < mol_info->numof_enlev; ++j)
         {
+          gsl_matrix_set (calc_data->rates, i, j, 1e-30);
           double ediff = gsl_vector_get (calc_data->term, i)
                          - gsl_vector_get (calc_data->term, j);
           if (ediff < 0)
@@ -374,10 +379,19 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
       if (iter != 0)
         thick_lines = refresh_starting_conditions (data, n_radtr);
 
+      for (int i = 0; i < 4; ++i)
+        {
+          for (int j = 0; j < 4; ++j)
+            {
+              printf ("%9.2e  ", gsl_matrix_get (data->rates, i, j));
+            }
+          printf ("\n");
+        }
+
       stop_condition = 0;
       // Correct rates for collisional rates and prepare new matrix
       // for calculations
-      gsl_matrix *calc_rates = gsl_matrix_calloc (n_enlev + 1, n_enlev + 1);
+      gsl_matrix *calc_rates = gsl_matrix_calloc (n_enlev, n_enlev);
       for (int i = 0; i < n_enlev; ++i)
         {
           const double ii = gsl_matrix_get (data->rates, i, i)
@@ -397,14 +411,28 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
             }
         }
       // Prepare for calculations
-      gsl_vector *b = gsl_vector_alloc (n_enlev + 1);
-      gsl_vector_set_all (b, 1);
-      gsl_matrix_set_row (calc_rates, calc_rates->size1 - 1, b);
+      gsl_vector *b = gsl_vector_alloc (n_enlev);
       gsl_vector_set_all (b, 0);
       gsl_vector_set (b, b->size - 1, 1);
-
-      gsl_linalg_HH_svx (calc_rates, b);
-
+      gsl_vector *x = gsl_vector_alloc (n_enlev);
+/*
+      for (int i = 0; i < n_enlev + 1; ++i)
+        {
+          for (int j = 0; j < n_enlev + 1; ++j)
+            {
+              printf ("%9.2e  ", gsl_matrix_get (calc_rates, i, j));
+            }
+          printf ("\n");
+        }
+*/
+/*
+      gsl_permutation *p = gsl_permutation_alloc (n_enlev + 1);
+      int s;
+      gsl_linalg_LU_decomp (calc_rates, p, &s);
+      gsl_linalg_LU_solve (calc_rates, p, b, x);
+*/
+      gsl_linalg_HH_solve (calc_rates, b, x);
+/*
       for (int i = 0; i < n_enlev; ++i)
         {
           for (int j = 0; j < n_enlev; ++j)
@@ -413,18 +441,19 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
             }
           printf ("\n");
         }
-
+*/
+      gsl_vector_fprintf (stdout, x, "%.3e");
       double total_pop = 0;
       for (int i = 0; i < n_enlev; ++i)
-        total_pop += gsl_vector_get (b, i);
+        total_pop += gsl_vector_get (x, i);
 
       if (iter != 0)
         gsl_vector_memcpy (prev_pop, data->pop);
 
+      DEBUG ("total population %f", total_pop);
       for (int i = 0; i < n_enlev; ++i)
         {
-          DEBUG ("total population %f", total_pop);
-          const double new_pop_i = gsl_vector_get (b, i) / total_pop;
+          const double new_pop_i = gsl_vector_get (x, i) / total_pop;
 
           gsl_vector_set (data->pop, i,
               (fabs (new_pop_i) > 1e-20) ? fabs (new_pop_i) : 1e-20);
@@ -436,7 +465,8 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
           const unsigned int l = data->low[i] - 1;
 
           const double new_exit_temp_i = RXI_FK
-              * gsl_matrix_get (data->energy, u, l)
+              * (gsl_vector_get (data->term, u)
+                 - gsl_vector_get (data->term, l)) 
               / log (gsl_vector_get (data->pop, l)
                      * gsl_vector_get (data->weight, u)
                      / gsl_vector_get (data->pop, u)
@@ -478,10 +508,12 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
 
       gsl_matrix_free (calc_rates);
       gsl_vector_free (b);
-      iter++;
+      //gsl_permutation_free (p);
+      gsl_vector_free (x);
+      ++iter;
       DEBUG ("Thick lines: %d | Stopping cond: %.3e", thick_lines,
              stop_condition);
-    } while ((thick_lines != 0 && stop_condition >= 1e-6) || iter > 100);
+    } while (false);//(thick_lines != 0 && stop_condition >= 1e-6) && iter < 100);
 
   gsl_vector_free (prev_pop);
 
@@ -545,10 +577,9 @@ rxi_calc_optical_depth (const double coldens, const double line_width,
 {
   DEBUG ("cd: %.3e | lw: %f | en: %.3e | ei: %.3e | us: %.3e | ls: %.3e | up: %.3e | lp: %.3e",
          coldens, line_width, energy, einst, ustat, lstat, upop, lpop);
-  return
-          (gsl_pow_3 (GSL_CONST_CGSM_SPEED_OF_LIGHT) * einst * coldens)
-      / //------------------------------------------------------------- *
-              (8 * M_PI * gsl_pow_3 (energy) * 1.064 * line_width)
 
-      * 1e-5 * (lpop * ustat / lstat - upop);
+  return
+          (1e-5 * (lpop * ustat / lstat - upop) * einst * coldens)
+      / //-----------------------------------------------------------
+                    (RXI_FK * 1.0645 * 8.0 * M_PI * line_width);
 }
