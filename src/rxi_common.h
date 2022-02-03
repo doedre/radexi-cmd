@@ -271,7 +271,7 @@ struct rxi_calc_data
   gsl_matrix *rates;
   gsl_vector *pop;
   gsl_matrix *tau;
-  gsl_matrix *exit_temp;
+  gsl_matrix *excit_temp;
 };
 
 /// @brief TODO

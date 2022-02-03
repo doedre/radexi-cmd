@@ -23,7 +23,8 @@ rxi_calc_bgfield (struct rxi_calc_data *data,
       const unsigned int u = mol_radtr->up[i] - 1;
       const unsigned int l = mol_radtr->low[i] - 1;
 
-      const double energy = gsl_matrix_get (data->energy, u, l);
+      const double energy = gsl_vector_get (data->term, u)
+                            - gsl_vector_get (data->term, l);
 
       const double intens =
               (2 * RXI_HP * RXI_SOL * gsl_pow_3 (energy))
