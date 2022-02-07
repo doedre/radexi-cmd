@@ -379,7 +379,8 @@ rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp)
 }
 
 RXI_STAT
-rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev)
+rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
+                      const size_t n_radtr)
 {
   DEBUG ("Allocation memory for calculation data structure");
   struct rxi_calc_data *cd = malloc (sizeof (*cd));
@@ -387,18 +388,17 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev)
   if (!cd)
     goto malloc_error;
 
-  int *up = malloc (n_enlev * sizeof (*up));
+  int *up = malloc (n_radtr * sizeof (*up));
   CHECK (up && "Allocation error");
   if (!up)
     {
       goto malloc_error;
     }
 
-  int *low = malloc (n_enlev * sizeof (*low));
+  int *low = malloc (n_radtr * sizeof (*low));
   CHECK (low && "Allocation error");
   if (!low)
     {
-      free (up);
       goto malloc_error;
     }
 
@@ -527,9 +527,9 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev)
       goto malloc_error;
     }
 
-  gsl_matrix *exit_temp = gsl_matrix_calloc (n_enlev, n_enlev);
-  CHECK (exit_temp && "Allocation error");
-  if (!exit_temp)
+  gsl_matrix *excit_temp = gsl_matrix_calloc (n_enlev, n_enlev);
+  CHECK (excit_temp && "Allocation error");
+  if (!excit_temp)
     {
       free (cd);
       gsl_vector_free (term);
@@ -563,7 +563,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev)
   cd->tau = tau;
   cd->pop = pop;
   cd->bgfield = bgfield;
-  cd->exit_temp = exit_temp;
+  cd->excit_temp = excit_temp;
 
   *calc_data = cd;
 
@@ -589,5 +589,5 @@ rxi_calc_data_free (struct rxi_calc_data *calc_data)
   gsl_vector_free (calc_data->tot_rates);
   gsl_vector_free (calc_data->pop);
   gsl_matrix_free (calc_data->tau);
-  gsl_matrix_free (calc_data->exit_temp);
+  gsl_matrix_free (calc_data->excit_temp);
 }

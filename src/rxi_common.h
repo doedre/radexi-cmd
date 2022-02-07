@@ -271,12 +271,12 @@ struct rxi_calc_data
   gsl_matrix *rates;
   gsl_vector *pop;
   gsl_matrix *tau;
-  gsl_matrix *exit_temp;
+  gsl_matrix *excit_temp;
 };
 
 /// @brief TODO
 RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
-                               const size_t n_enlev);
+                               const size_t n_enlev, const size_t n_radtr);
 
 /// @brief TODO
 void rxi_calc_data_free (struct rxi_calc_data *calc_data);
