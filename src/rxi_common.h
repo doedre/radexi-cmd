@@ -276,7 +276,7 @@ struct rxi_calc_data
 
 /// @brief TODO
 RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
-                               const size_t n_enlev);
+                               const size_t n_enlev, const size_t n_radtr);
 
 /// @brief TODO
 void rxi_calc_data_free (struct rxi_calc_data *calc_data);

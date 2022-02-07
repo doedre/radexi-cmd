@@ -19,21 +19,18 @@
 static void
 set_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
 {
-  DEBUG ("Set starting conditions");
+  DEBUG ("Set starting conditions; matrix size: %zu", data->einst->size1);
   for (int i = 0; i < n_radtr; ++i)
     {
       const unsigned int u = data->up[i] - 1;
       const unsigned int l = data->low[i] - 1;
 
-      DEBUG ("sol: %.3e | xnu: %.3e | bgtemp: %.3e", RXI_FK,
-             gsl_matrix_get(data->energy, u, l), data->temp_bg[0]);
+      DEBUG ("%d -> %d", u, l);
+
       double coef = RXI_FK
                     * (gsl_vector_get (data->term, u)
                       - gsl_vector_get (data->term, l))
                     / data->temp_bg[0];
-
-      DEBUG ("u: %d | l: %d | ae: %.3e | coef: %.3e", u, l,
-              gsl_matrix_get (data->einst, u, l), coef);
 
       if (coef >= 160)
         coef = 0;
@@ -187,6 +184,7 @@ rxi_calc_data_init (struct rxi_calc_data *calc_data,
 
   set_starting_conditions (calc_data, mol_info->numof_radtr);
 /*
+ *
   rxi_db_molecule_enlev_free (mol_enl);
   rxi_db_molecule_radtr_free (mol_rt);
   for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
@@ -271,8 +269,6 @@ rxi_calc_data_fill (const struct rxi_input_data *inp_data,
 
   for (int i = 0; i < mol_info->numof_enlev; ++i)
     {
-      calc_data->up[i] = mol_radtr->up[i];
-      calc_data->low[i] = mol_radtr->low[i];
       gsl_vector_set (calc_data->term, mol_enlev->level[i] - 1,
                       mol_enlev->term[i]);
       gsl_vector_set (calc_data->weight, mol_enlev->level[i] - 1,
@@ -283,6 +279,8 @@ rxi_calc_data_fill (const struct rxi_input_data *inp_data,
 
   for (int i = 0; i < mol_info->numof_radtr; ++i)
     {
+      calc_data->up[i] = mol_radtr->up[i];
+      calc_data->low[i] = mol_radtr->low[i];
       gsl_matrix_set (calc_data->einst, mol_radtr->up[i] - 1,
                       mol_radtr->low[i] - 1, mol_radtr->einst[i]);
       gsl_matrix_set (calc_data->energy, mol_radtr->up[i] - 1,
@@ -402,13 +400,11 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
           printf ("\n");
         }
 
-/*
       gsl_permutation *p = gsl_permutation_alloc (n_enlev);
       int s;
       gsl_linalg_LU_decomp (data->rates, p, &s);
       gsl_linalg_LU_solve (data->rates, p, b, x);
-*/
-      gsl_linalg_HH_solve (data->rates, b, x);
+      //gsl_linalg_HH_solve (data->rates, b, x);
 /*
       for (int i = 0; i < n_enlev; ++i)
         {
