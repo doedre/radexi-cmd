@@ -12,21 +12,29 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_const_cgsm.h>
 
+//! Maximum path size.
 #define RXI_PATH_MAX 1024
+//! Maximum string size to read from files.
 #define RXI_STRING_MAX 512
+//! Maximum string size for quantum numbers.
 #define RXI_QNUM_MAX 30
-
+//! Maximum molecule name size.
 #define RXI_MOLECULE_MAX 15
+//! Maximum number of collisional temperatures.
 #define RXI_COLL_TEMPS_MAX 50
+//! Maximum number of collisional parameters.
 #define RXI_COLL_PARTNERS_MAX 7
-
+//! 
 #define RXI_ELEMENTS_MAX RXI_COLL_TEMPS_MAX + 3
 
+//! 
 #define RXI_FK                                                                \
         GSL_CONST_CGSM_PLANCKS_CONSTANT_H * GSL_CONST_CGSM_SPEED_OF_LIGHT     \
         / GSL_CONST_CGSM_BOLTZMANN
 
+//! Planck constant
 #define RXI_HP GSL_CONST_CGSM_PLANCKS_CONSTANT_H
+//! Speed of light
 #define RXI_SOL GSL_CONST_CGSM_SPEED_OF_LIGHT
 
 /// @brief Status codes for functions that may fail.
@@ -66,51 +74,45 @@ enum USAGE_MODE
   UM_VERSION                  //!< Print version information.
 };
 
-
-/* This structure defines options for all of the possible processes in the 
- * program. It is being filled after reading options by 'getopt_long()' in 
- * 'set_rx_options' functions. */
+/// @brief Options to set program's global state.
+///
+/// This program acts like state machine and these options (defined through 
+/// flags on start) are used to set the global state. In my opinion this
+/// behaviour is not good from the architecture perspective, but it may help
+/// someone include this program as package in their own programs. Look for
+/// `main.c` file for examples.
 struct rxi_options
 {
-  /* How molecular cloud's parameters will be collected: via dialogue or file.
-   */
+  //! Used to set program's main state. Look for `enum USAGE_MODE`.
   enum USAGE_MODE usage_mode;
 
+  //! Write status during `rxi_set_options()` to exit on fail.
   enum RXI_STAT status;
 
-  /* Molecule name defined by the user when adding one in case of 
-   * UM_MOLECULAR_FILE usage_mode.  */
+  //! Molecule name for molecular file usage mods is written here.
   char molecule_name[RXI_MOLECULE_MAX];
 
-  /* Forces file rewrite if specified files for results of calculation 
-   * already exist.
-   * -f flag: disabled by default */
+  //! Forces every action without user interruption. `-f` option.
   bool force_fs;
 
+  //! Disable frequency limits for calculations. `-l` option.
   bool no_freq_limits;
 
-  /* Whether resulting table should be printed in the terminal or not.
-   * -o flag: disabled by default */
+  //! Print result in `stdout`. `-o` option.
   bool cmd_output;
 
-  /* Print message w/ information on the start or not.
-   * -q flag: disabled by default */
+  //! Don't print starting message. `-q` option.
   bool quite_start;
 
-  /* If 'true', then instead of writing densities in scientific format user 
-   * should only write power of 10.
-   * -L of --log-density flag: disabled by default */
+  //! Enter powers of 10 instead of whole density. `-L` option.
   bool dens_log_scale;
 
-  /* if 'true', then use [GHz] line width instead of [km -s].
-   * -H og --hz-width flag: disabled by default  */
   bool hz_width;
 
-  /* If user defined a path for the file w/ resilts. 
-   * -r or --result flag */
+  //! Path to the file with results. `-r` or `--result` option.
   bool user_defined_out_file_path;
 
-  /* Specified path for user's output file  */
+  //! Path for result file (`-r` option) is written here.
   char result_path[RXI_PATH_MAX];
 };
 
@@ -144,6 +146,7 @@ typedef enum COLL_PART
 }
 COLL_PART;
 
+/// @brief Possible geometries for radiation fields.
 typedef enum GEOMETRY
 {
   SPHERE = 1,
@@ -153,24 +156,32 @@ typedef enum GEOMETRY
 }
 GEOMETRY;
 
-/// @brief TODO
+/// @brief Starting information may be written here.
+///
+/// All the needed information from user can be written in this structure for
+/// future use. No memory should be allocated before.
 struct rxi_input_data
 {
-  char name[RXI_MOLECULE_MAX];
-  float sfreq;
-  float efreq;
-  double temp_kin;
-  double temp_bg;
-  double col_dens;
-  double line_width;
-  GEOMETRY geom;
-  int8_t n_coll_partners;
+  char    name[RXI_MOLECULE_MAX]; //!< Molecule name from local database.
+  float   sfreq;                  //!< Starting frequency for output [GHz].
+  float   efreq;                  //!< Ending frequency for output [GHz].
+  double  temp_kin;               //!< Kinetic temperature [K].
+  double  temp_bg;                //!< Background temperature [K].
+  double  col_dens;               //!< Column density [cm-2].
+  double  line_width;             //!< FWHM width for all lines [km s-1].
+  GEOMETRY geom;                  //!< Radiation field geometry.
+  int8_t  n_coll_partners;        //!< Number of specified collision partners.
 
-  COLL_PART coll_part[RXI_COLL_PARTNERS_MAX];
-  double coll_part_dens[RXI_COLL_PARTNERS_MAX];
+  COLL_PART coll_part[RXI_COLL_PARTNERS_MAX];   //!< Collision partner names.
+  double coll_part_dens[RXI_COLL_PARTNERS_MAX]; //!< Partner densities [cm-3].
 };
 
-/// @brief Used to store molecular information from `*.info` file or LAMDA.
+/// @brief Used to read molecular information from `*.info` file or LAMDA.
+///
+/// This structure shouldn't be filled by the user. It is used to store
+/// information from database for future allocations. Should allocate memory
+/// by `rxi_db_molecule_info_malloc()` before usage (TODO: allocation is not
+/// needed).
 struct rxi_db_molecule_info
 {
   char    *name;
@@ -185,13 +196,20 @@ struct rxi_db_molecule_info
   gsl_matrix *coll_temps;
 };
 
-/// @brief TODO
+/// @brief Allocate memory for `struct rxi_db_molecule_info`.
+/// @param **mol_info -- pointer to a pointer to a structure for allocation.
+/// @return `RXI_OK` on success; `RXI_ERR_ALLOC` on allocation error.
 RXI_STAT rxi_db_molecule_info_malloc (struct rxi_db_molecule_info **mol_info);
 
-/// @brief TODO
+/// @brief Free memory for `struct rxi_db_molecule_info`.
+/// @param *mol_info -- pointer to a structure which needs to be freed.
 void rxi_db_molecule_info_free (struct rxi_db_molecule_info *mol_info);
 
 /// @brief Holds energy level information from database.
+///
+/// This structure shouldnt be filled by the user. It is used to store
+/// information about energy levels from database. Should allocate memory
+/// by `rxi_db_molecule_enlev_malloc()` before usage.
 struct rxi_db_molecule_enlev
 {
   int     *level;
@@ -201,13 +219,22 @@ struct rxi_db_molecule_enlev
 };
 
 /// @brief Memory allocation for `struct rxi_db_molecule_enlev`.
+/// @param **mol_enl -- pointer to a pointer to a structure for allocation;
+/// @param n_enlev -- number of energy levels for current molecule (get it
+/// from database by `rxi_db_read_molecule_info()` function).
+/// @return `RXI_OK` on success; `RXI_ERR_ALLOC` on allocation error.
 RXI_STAT rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
                                        const size_t n_enlev);
 
-/// @brief TODO
+/// @brief Free memory for `struct rxi_db_molecule_enlev`.
+/// @param *mol_enl -- pointer to a structure which needs to be freed.
 void rxi_db_molecule_enlev_free (struct rxi_db_molecule_enlev *mol_enl);
 
 /// @brief Holds radiative transfer information from database.
+///
+/// This structure shouldn't be filled by the user. It is used to store
+/// information about radiative transfers from database. Should allocate memory
+/// by `rxi_db_molecule_radtr_malloc()` before usage.
 struct rxi_db_molecule_radtr
 {
   int     *up;
@@ -217,14 +244,23 @@ struct rxi_db_molecule_radtr
   double  *up_en;
 };
 
-/// @brief TODO
+/// @brief Memory allocation for `struct rxi_db_molecule_radtr`.
+/// @param **mol_rat -- pointer to a pointer to a structure for allocation;
+/// @param n_radtr -- number of radiative transfers for current molecule (get
+/// it from database by `rxi_db_read_molecule_info()` function).
+/// @return `RXI_OK` on success; `RXI_ERR_ALLOC` on allocation error.
 RXI_STAT rxi_db_molecule_radtr_malloc (struct rxi_db_molecule_radtr **mol_rat,
                                        const size_t n_radtr);
 
-/// @brief TODO
+/// @brief Free memory for `struct rxi_db_molecule_radtr`.
+/// @param *mol_rat -- pointer to a structure which needs to be freed.
 void rxi_db_molecule_radtr_free (struct rxi_db_molecule_radtr *mol_rat);
 
 /// @brief Holds collisional coefficients for specific molecule.
+///
+/// This structure shouldn't be filled by the user. It is used to store
+/// information about collisional partner from database. Should allocate memory
+/// by `rxi_db_molecule_coll_part_malloc()` before usage.
 struct rxi_db_molecule_coll_part
 {
   int   *up;
@@ -232,15 +268,27 @@ struct rxi_db_molecule_coll_part
   gsl_matrix *coll_rates;
 };
 
-/// @brief TODO
+/// @brief Memory allocation for `struct rxi_db_molecule_coll_part`.
+/// @param **mol_cp -- pointer to a pointer to a structure for allocation;
+/// @param n_cp_trans -- number of collisional transitions for current
+/// molecular partner (get it from database by `rxi_db_read_molecule_info()`
+/// function).
+/// @param n_temps -- number of colisional temperatures for current
+/// molecular partner (get it from database by `rxi_db_read_molecule_info()`
+/// function).
+/// @return `RXI_OK` on success; `RXI_ERR_ALLOC` on allocation error.
 RXI_STAT rxi_db_molecule_coll_part_malloc (
     struct rxi_db_molecule_coll_part **mol_cp, const size_t n_cp_trans,
     const size_t n_temps);
 
-/// @brief TODO
+/// @brief Free memory for `struct rxi_db_molecule_coll_part`.
+/// @param *mol_cp -- pointer to a structure which needs to be freed.
 void rxi_db_molecule_coll_part_free (struct rxi_db_molecule_coll_part *mol_cp);
 
-
+/// @brief Holds all information about the molecule from database.
+///
+/// This structure shouldn't be filled by the user. All components should be
+/// allocated before including in this structure.
 struct rxi_db_molecule
 {
   struct rxi_db_molecule_info   *info;
@@ -249,7 +297,7 @@ struct rxi_db_molecule
   struct rxi_db_molecule_coll_part **coll_part;
 };
 
-/// @brief TODO
+/// @brief Holds all information for calculation and output.
 struct rxi_calc_data
 {
   double *temp_kin;
@@ -274,11 +322,18 @@ struct rxi_calc_data
   gsl_matrix *excit_temp;
 };
 
-/// @brief TODO
+/// @brief Memory allocation for `struct rxi_calc_data`.
+/// @param **calc_data -- pointer to a pointer to a structure for allocation;
+/// @param n_enlev -- number of energy levels for current molecule (get it from
+/// database by `rxi_db_read_molecule_info()` function).
+/// @param n_radtr -- number of radiative transfers for current molecule (get
+/// it from database by `rxi_db_read_molecule_info()` function).
+/// @return `RXI_OK` on success; `RXI_ERR_ALLOC` on allocation error.
 RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
                                const size_t n_enlev, const size_t n_radtr);
 
-/// @brief TODO
+/// @brief Free memory for `struct rxi_db_molecule_coll_part`.
+/// @param *mol_cp -- pointer to a structure which needs to be freed.
 void rxi_calc_data_free (struct rxi_calc_data *calc_data);
 
 #endif  // RXI_COMMON_H

@@ -28,12 +28,16 @@ enum
 /// @brief Sets all options to their default values.
 ///
 /// For default values see `struct rxi_options`.
-/// @param[in] opts -- pointer to used `struct rxi_options`
+/// @param *opts -- pointer to used `struct rxi_options`
 void rxi_set_default_options (struct rxi_options *opts);
 
 /// @brief Sets options according to command line arguments.
 ///
-/// 
+/// Using `getopt_long()` to parse command line arguments.
+/// @param *opts -- pointer to used `struct rxi_options`;
+/// @param argc -- number of command line options;
+/// @param **argv -- command line arguments.
+/// @return `optind` argument from command line, which defines free argument.
 int rxi_set_options (struct rxi_options *opts, int argc, char **argv);
 
 #endif  // RXI_OPTIONS_H
