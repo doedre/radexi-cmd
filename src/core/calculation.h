@@ -5,7 +5,16 @@
 
 #include "rxi_common.h"
 
-/// @brief Fills `struct rxi_calc_data` to start calculations.
+/// @brief Initializes `struct rxi_calc_data` to start calculations.
+///
+/// Uses `rxi_calc_data_fill()` to fill `struct rxi_calc_data` with data from
+/// local database and input info. If you already have read data from database
+/// just use `rxi_calc_data_fill()`.
+/// @param *calc_data -- structure you need to fill (allocate memory for this
+/// before);
+/// @param *inp_data -- starting conditions are written here;
+/// @param *mol_info -- 
+/// @return `RXI_OK` 
 RXI_STAT rxi_calc_data_init (struct rxi_calc_data *calc_data,
                              const struct rxi_input_data *inp_data,
                              const struct rxi_db_molecule_info *mol_info);

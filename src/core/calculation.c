@@ -160,7 +160,7 @@ rxi_calc_data_init (struct rxi_calc_data *calc_data,
   DEBUG ("Molecule radtr parameters were read");
 
   struct rxi_db_molecule_coll_part **mol_cp = malloc (
-      inp_data->n_coll_partners * sizeof (*mol_cp));
+      inp_data->n_coll_partners * sizeof (**mol_cp));
 
   for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
     {
@@ -168,28 +168,45 @@ rxi_calc_data_init (struct rxi_calc_data *calc_data,
       status = rxi_db_molecule_coll_part_malloc (&mol_cp[i],
           mol_info->numof_coll_trans[cp], mol_info->numof_coll_temps[cp]);
       if (status != RXI_OK)
-        goto error;
+        {
+          rxi_db_molecule_enlev_free (mol_enl);
+          rxi_db_molecule_radtr_free (mol_rt);
+          free (*mol_cp);
+          goto error;
+        }
       status = rxi_db_read_molecule_coll_part (inp_data->name,
           inp_data->coll_part[i], mol_info->numof_coll_temps[cp], mol_cp[i]);
       if (status != RXI_OK)
-        goto error;
+        {
+          rxi_db_molecule_enlev_free (mol_enl);
+          rxi_db_molecule_radtr_free (mol_rt);
+          free (*mol_cp);
+          goto error;
+        }
 
       DEBUG ("Molecule collision transfer parameters were read");
     }
 
   status = rxi_calc_data_fill (inp_data, mol_info, mol_enl, mol_rt, mol_cp,
                                calc_data);
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_enlev_free (mol_enl);
+      rxi_db_molecule_radtr_free (mol_rt);
+      for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
+        rxi_db_molecule_coll_part_free (mol_cp[i]);
+      goto error;
+    }
 
   rxi_calc_bgfield (calc_data, mol_rt, mol_info->numof_radtr);
-
   set_starting_conditions (calc_data, mol_info->numof_radtr);
-/*
- *
+
   rxi_db_molecule_enlev_free (mol_enl);
   rxi_db_molecule_radtr_free (mol_rt);
+
   for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
     rxi_db_molecule_coll_part_free (mol_cp[i]);
-*/
+
   return status;
 
 error:
@@ -481,10 +498,12 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
 
       gsl_vector_free (b);
       gsl_vector_free (x);
+      gsl_permutation_free (p);
       ++iter;
       DEBUG ("%d: Thick lines: %d | Stopping cond: %.3e", iter, thick_lines,
              stop_condition);
-    } while ((thick_lines != 0 && stop_condition / thick_lines >= 1e-6) && iter < 300);
+    } while ((thick_lines != 0 && stop_condition / thick_lines >= 1e-6) &&
+              iter < 300);
 
   gsl_vector_free (prev_pop);
 
