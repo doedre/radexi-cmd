@@ -30,7 +30,7 @@ set_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       double coef = RXI_FK
                     * (gsl_vector_get (data->term, u)
                       - gsl_vector_get (data->term, l))
-                    / data->temp_bg[0];
+                    / data->input.temp_bg;
 
       if (coef >= 160)
         coef = 0;
@@ -72,8 +72,8 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
 
       double energy = gsl_vector_get (data->term, u)
                       - gsl_vector_get (data->term, l);
-      const double tau = rxi_calc_optical_depth (data->col_dens[0],
-          data->line_width[0], energy,
+      const double tau = rxi_calc_optical_depth (data->input.col_dens,
+          data->input.line_width, energy,
           gsl_matrix_get (data->einst, u, l),
           gsl_vector_get (data->weight, u), gsl_vector_get (data->weight, l),
           gsl_vector_get (data->pop, u), gsl_vector_get (data->pop, l));
@@ -82,7 +82,7 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       if (tau > 1e-2)
         ++thick_lines;
 
-      const double beta = rxi_calc_escape_prob (tau, data->geom[0]);
+      const double beta = rxi_calc_escape_prob (tau, data->input.geom);
 
       const double coef =
               (gsl_matrix_get (data->bgfield, u, l) * beta)
@@ -122,11 +122,9 @@ rxi_calc_data_init (struct rxi_calc_data *calc_data,
 {
   DEBUG ("Calculation data initialization for %s", inp_data->name);
 
-  calc_data->temp_kin[0] = inp_data->temp_kin;
-  calc_data->temp_bg[0] = inp_data->temp_bg;
-  calc_data->col_dens[0] = inp_data->col_dens;
-  calc_data->line_width[0] = inp_data->line_width;
-  calc_data->geom[0] = inp_data->geom;
+  calc_data->input = *inp_data;
+  calc_data->numof_enlev = mol_info->numof_enlev;
+  calc_data->numof_radtr = mol_info->numof_radtr;
 
   RXI_STAT status = RXI_OK;
   struct rxi_db_molecule_enlev *mol_enl;
@@ -200,13 +198,13 @@ rxi_calc_data_init (struct rxi_calc_data *calc_data,
 
   rxi_calc_bgfield (calc_data, mol_rt, mol_info->numof_radtr);
   set_starting_conditions (calc_data, mol_info->numof_radtr);
-
+/*
   rxi_db_molecule_enlev_free (mol_enl);
   rxi_db_molecule_radtr_free (mol_rt);
 
   for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
     rxi_db_molecule_coll_part_free (mol_cp[i]);
-
+*/
   return status;
 
 error:
@@ -422,16 +420,7 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
       gsl_linalg_LU_decomp (data->rates, p, &s);
       gsl_linalg_LU_solve (data->rates, p, b, x);
       //gsl_linalg_HH_solve (data->rates, b, x);
-/*
-      for (int i = 0; i < n_enlev; ++i)
-        {
-          for (int j = 0; j < n_enlev; ++j)
-            {
-              printf ("%9.2e  ", gsl_matrix_get (calc_rates, i, j));
-            }
-          printf ("\n");
-        }
-*/
+
       gsl_vector_fprintf (stdout, x, "%.3e");
       double total_pop = 0;
       for (int i = 0; i < n_enlev; ++i)
@@ -473,8 +462,8 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
                   0.5 * (new_excit_temp_i
                     + gsl_matrix_get(data->excit_temp, u, l)));
             }
-          const double new_tau = rxi_calc_optical_depth (data->col_dens[0],
-              data->line_width[0],
+          const double new_tau = rxi_calc_optical_depth (data->input.col_dens,
+              data->input.line_width,
               gsl_vector_get (data->term, u) - gsl_vector_get (data->term, l),
               gsl_matrix_get (data->einst, u, l),
               gsl_vector_get(data->weight, u), gsl_vector_get (data->weight, l),
@@ -506,6 +495,87 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
               iter < 300);
 
   gsl_vector_free (prev_pop);
+
+  return RXI_OK;
+}
+
+RXI_STAT
+rxi_calc_results (struct rxi_calc_data *data, size_t numof_radtr)
+{
+  for (unsigned int i = 0; i < numof_radtr; i++)
+    {
+      const int u = data->up[i] - 1;
+      const int l = data->low[i] - 1;
+
+      const double energy = 
+          gsl_vector_get (data->term, u) - gsl_vector_get (data->term, l);
+      const double xt = gsl_pow_3 (energy);
+
+      // Calculate source function 
+      const double hnu =
+                                    RXI_FK * energy
+                      / //----------------------------------------
+                          gsl_matrix_get (data->excit_temp, u, l);
+
+      double planck = 0;
+      if (hnu < 160)
+        {
+          planck =
+                              2 * RXI_HP * RXI_SOL * xt
+              / //---------------------------------------------------------
+                    (- 1 + exp (                  RXI_FK * energy
+                                / //------------------------------------------
+                                    gsl_matrix_get (data->excit_temp, u, l)));
+        }
+      // Calculate line brightness in excess of background
+      double ftau = 0;
+      if (fabs (gsl_matrix_get (data->tau, u, l)) <= 3e2)
+        ftau = exp (- gsl_matrix_get (data->tau, u, l));
+
+      const double toti = gsl_matrix_get (data->bgfield, u, l) * ftau
+                          + planck * (1 - ftau);
+
+      double tback = 0;
+      if (gsl_matrix_get (data->bgfield, u, l) != 0)
+        {
+          tback =
+                                    RXI_FK * energy
+              / // -----------------------------------------------------
+                   log (        2 * RXI_HP * RXI_SOL * xt 
+                       / //------------------------------------
+                           gsl_matrix_get (data->bgfield, u, l)      + 1);
+        }
+
+      // Calculate antenna temperature
+      double new_antenna_temp = toti;
+      if (fabs (tback / (hnu * gsl_matrix_get (data->excit_temp, u, l))) > 2e-2)
+        new_antenna_temp = toti - gsl_matrix_get (data->bgfield, u, l);
+
+      new_antenna_temp /= 2 * RXI_KB * gsl_pow_2 (energy);
+      gsl_matrix_set (data->antenna_temp, u, l, new_antenna_temp);
+
+      // Calculate radiation temperature
+      const double beta = rxi_calc_escape_prob (
+                          gsl_matrix_get (data->tau, u, l), data->input.geom);
+      const double Bnu = data->input.temp_bg * beta + (1 - beta) * planck;
+      if (Bnu != 0)
+        {
+          const double wh = 2 * RXI_HP * RXI_SOL * xt / Bnu + 1;
+          if (wh <= 0)
+            {
+              gsl_matrix_set (data->radiation_temp, u, l,
+                              Bnu / (2 * RXI_KB * gsl_pow_2 (energy)));
+            }
+          else
+            {
+              gsl_matrix_set (data->radiation_temp, u, l,
+                              RXI_FK * energy / log (wh));
+            }
+        }
+/*
+      const double spflux = 1.0645 * rxi->mc.line_width * ta;
+      const double enflux = 1.0645 * 8 * M_PI * kB * rxi->mc.line_width * ta * xt;*/
+    }
 
   return RXI_OK;
 }
@@ -557,7 +627,6 @@ rxi_calc_escape_prob (const double tau, const GEOMETRY geom)
     }
 
   return beta;
-
 }
 
 double
@@ -565,12 +634,6 @@ rxi_calc_optical_depth (const double coldens, const double line_width,
     const double energy, const double einst, const double ustat,
     const double lstat, const double upop, const double lpop)
 {
-  /*DEBUG ("1e-5 * (%.3e * %.3e / %.3e - %.3e) * %.3e * %.3e\n\
-                                                                 ----------------------------------------------------------------------------\n\
-                                                                  %.3e * 1.0645 * 8 * pi * %.3e\n",
-  lpop, ustat, lstat, upop, einst, coldens,
-  gsl_pow_3 (energy), line_width);
-*/
   return
           (1e-5 * (lpop * ustat / lstat - upop) * einst * coldens)
       / //--------------------------------------------------------

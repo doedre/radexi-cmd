@@ -35,31 +35,6 @@ RXI_STAT rxi_delete_molecule (const char *name);
 /// TODO
 RXI_STAT rxi_list_molecules ();
 
-/// @brief Converts collisional partner number to string.
-///
-/// Allocates memory for the returned string, so it should be freed after
-/// usage. Convert `COLL_PART` to predefined string names.
-/// @param cp -- collision partner of `enum COLL_PART` type.
-/// @return Allocated string with collision partner's name.
-char *numtoname (COLL_PART cp);
-
-/// @brief Converts string to collisional partner number.
-///
-/// Converts collision partner's name to `enum COLL_PART`.
-/// @param *name -- string with name.
-/// @return One of the collisional partners or `NO_MOLECULE` on error.
-COLL_PART nametonum (const char *name);
-
-/// @brief Get number for specified collision partner from database info file.
-///
-/// Searches database (through `struct rxi_db_molecule_info`) for specified
-/// collision partner number in database (not `enum COLL_PART`).
-/// @param *mol_info -- structure with information about the molecule from
-/// local database;
-/// @param cp -- collision partner which number needs to be defined.
-/// @return Count number for specified collision partner.
-int8_t cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp);
-
 /// @brief Iterate through local database molecule names.
 ///
 /// Given database path iterates through it and fills second parameter with

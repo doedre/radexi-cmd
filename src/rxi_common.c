@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <ctype.h>
 #include <gsl/gsl_vector.h>
 #include <gsl/gsl_matrix.h>
 
@@ -545,12 +546,47 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
       goto malloc_error;
     }
 
+  gsl_matrix *antenna_temp = gsl_matrix_calloc (n_enlev, n_enlev);
+  CHECK (antenna_temp && "Allocation error");
+  if (!antenna_temp)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      gsl_vector_free (weight);
+      gsl_matrix_free (einst);
+      gsl_matrix_free (energy);
+      gsl_matrix_free (rates);
+      gsl_matrix_free (coll_rates);
+      gsl_vector_free (tot_rates);
+      gsl_vector_free (pop);
+      gsl_matrix_free (tau);
+      gsl_matrix_free (bgfield);
+      gsl_matrix_free (excit_temp);
+      goto malloc_error;
+    }
 
-  cd->temp_kin = malloc (sizeof (double*));
-  cd->temp_bg = malloc (sizeof (double*));
-  cd->col_dens = malloc (sizeof (double*));
-  cd->line_width = malloc (sizeof (double*));
-  cd->geom = malloc (sizeof (int*));
+  gsl_matrix *radiation_temp = gsl_matrix_calloc (n_enlev, n_enlev);
+  CHECK (radiation_temp && "Allocation error");
+  if (!radiation_temp)
+    {
+      free (cd);
+      gsl_vector_free (term);
+      gsl_vector_free (weight);
+      gsl_matrix_free (einst);
+      gsl_matrix_free (energy);
+      gsl_matrix_free (rates);
+      gsl_matrix_free (coll_rates);
+      gsl_vector_free (tot_rates);
+      gsl_vector_free (pop);
+      gsl_matrix_free (tau);
+      gsl_matrix_free (bgfield);
+      gsl_matrix_free (excit_temp);
+      gsl_matrix_free (antenna_temp);
+      goto malloc_error;
+    }
+
+  cd->numof_enlev = n_enlev;
+  cd->numof_radtr = n_radtr;
   cd->up = up;
   cd->low = low;
   cd->term = term;
@@ -564,6 +600,8 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
   cd->pop = pop;
   cd->bgfield = bgfield;
   cd->excit_temp = excit_temp;
+  cd->antenna_temp = antenna_temp;
+  cd->radiation_temp = radiation_temp;
 
   *calc_data = cd;
 
@@ -590,4 +628,96 @@ rxi_calc_data_free (struct rxi_calc_data *calc_data)
   gsl_vector_free (calc_data->pop);
   gsl_matrix_free (calc_data->tau);
   gsl_matrix_free (calc_data->excit_temp);
+}
+
+char*
+geomtoname (GEOMETRY geom)
+{
+  char *geom_name = malloc (RXI_STRING_MAX * sizeof (*geom_name));
+  CHECK (geom_name && "Allocation error");
+  if (!geom_name)
+    return NULL;
+
+  if (geom == SLAB)
+    strcpy (geom_name, "slab");
+  else if (geom == SPHERE)
+    strcpy (geom_name, "sphere");
+  else if (geom == LVG)
+    strcpy (geom_name, "lvg");
+
+  return geom_name;
+}
+
+char*
+numtoname (COLL_PART cp)
+{
+  char *cp_name = malloc (RXI_STRING_MAX * sizeof (*cp_name));
+  CHECK (cp_name && "Allocation error");
+  if (!cp_name)
+    return NULL;
+
+  if (cp == H2)
+    strcpy (cp_name, "H2");
+  else if (cp == PARA_H2)
+    strcpy (cp_name, "pH2");
+  else if (cp == ORTHO_H2)
+    strcpy (cp_name, "oH2");
+  else if (cp == ELECTRONS)
+    strcpy (cp_name, "electrons");
+  else if (cp == HI)
+    strcpy (cp_name, "HI");
+  else if (cp == He)
+    strcpy (cp_name, "He");
+  else if (cp == HII)
+    strcpy (cp_name, "HII");
+  else 
+    cp_name = NULL;
+
+  return cp_name;
+}
+
+COLL_PART
+nametonum (const char *name)
+{
+  char *cp_name = malloc (RXI_STRING_MAX * sizeof (*cp_name));
+  strcpy (cp_name, name);
+  COLL_PART result;
+  for (int8_t i = 0; name[i] != '\0'; ++i)
+    cp_name[i] = tolower (name[i]);
+
+  if (!strcmp (cp_name, "h2"))
+    result =  H2;
+  else if (!strcmp (cp_name, "ph2"))
+    result = PARA_H2;
+  else if (!strcmp (cp_name, "oh2"))
+    result = ORTHO_H2;
+  else if (!strcmp (cp_name, "electrons"))
+    result = ELECTRONS;
+  else if (!strcmp (cp_name, "hi"))
+    result = HI;
+  else if (!strcmp (cp_name, "he"))
+    result = He;
+  else if (!strcmp (cp_name, "hii"))
+    result = HII;
+  else
+    result = NO_PARTNER;
+
+  free (cp_name);
+  return result;
+}
+
+int8_t
+cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp)
+{
+  int8_t number = 0;
+  for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
+    {
+      if (mol_info->coll_part[i] == cp)
+        {
+          number = i;
+          break;
+        }
+    }
+
+  return number;
 }

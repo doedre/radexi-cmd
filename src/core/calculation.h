@@ -30,6 +30,8 @@ RXI_STAT rxi_calc_data_fill (const struct rxi_input_data *inp_data,
 RXI_STAT rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
                               const int n_radtr);
 
+RXI_STAT rxi_calc_results (struct rxi_calc_data *data, size_t numof_radtr);
+
 double rxi_calc_crate (const double istat, const double jstat,
     const double ediff, const double kin_temp, const double crate);
 

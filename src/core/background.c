@@ -28,8 +28,8 @@ rxi_calc_bgfield (struct rxi_calc_data *data,
 
       const double intens =
               (2 * RXI_HP * RXI_SOL * gsl_pow_3 (energy))
-          / //-------------------------------------------
-              (exp (RXI_FK * energy / data->temp_bg[0]) - 1);
+          / //-------------------------------------------------
+              (exp (RXI_FK * energy / data->input.temp_bg) - 1);
 
       gsl_matrix_set (data->bgfield, u, l, intens);
   }
