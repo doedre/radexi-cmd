@@ -33,9 +33,13 @@
         / GSL_CONST_CGSM_BOLTZMANN
 
 //! Planck constant
-#define RXI_HP GSL_CONST_CGSM_PLANCKS_CONSTANT_H
+#define RXI_HP    GSL_CONST_CGSM_PLANCKS_CONSTANT_H
 //! Speed of light
-#define RXI_SOL GSL_CONST_CGSM_SPEED_OF_LIGHT
+#define RXI_SOL   GSL_CONST_CGSM_SPEED_OF_LIGHT
+//! Electron's charge
+#define RXI_E     GSL_CONST_CGSM_ELECTRON_CHARGE
+//! Electron's mass
+#define RXI_EM    GSL_CONST_CGSM_MASS_ELECTRON
 
 /// @brief Status codes for functions that may fail.
 ///
@@ -67,6 +71,7 @@ enum USAGE_MODE
   UM_NONE = 0,                //!< Undefined usage mode.
   UM_DIALOGUE,                //!< Standart dialog with the user.
   UM_FILE,                    //!< Read input parameters from the file.
+  UM_SOBOLEV,                 //!< Use Sobolev method to calculate line form.
   UM_MOLECULAR_FILE_ADD,      //!< Add molecular data file from LAMDA.
   UM_MOLECULAR_FILE_DELETE,   //!< Delete local molecular data file.
   UM_MOLECULAR_FILE_LIST,     //!< List local molecular data files.

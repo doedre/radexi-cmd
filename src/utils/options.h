@@ -19,10 +19,11 @@
 /// additional information (or for `getopt.h` `man` pages).
 enum 
 {
-  ADD_MOLECULE_OPTION = CHAR_MAX + 1,
-  LIST_MOLECULES_OPTION,
-  DELETE_MOLECULE_OPTION,
-  VERSION_OPTION
+  OPTION_ADD_MOLECULE = CHAR_MAX + 1,
+  OPTION_LIST_MOLECULES,
+  OPTION_DELETE_MOLECULE,
+  OPTION_SOBOLEV,
+  OPTION_VERSION
 };
 
 /// @brief Sets all options to their default values.

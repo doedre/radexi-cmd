@@ -16,14 +16,15 @@
 ///
 /// Look for `getopt.h` `man` pages for additional information.
 struct option const long_options[] = {
-  {"add-molecule",    required_argument,  NULL, ADD_MOLECULE_OPTION},
-  {"list-molecules",  no_argument,        NULL, LIST_MOLECULES_OPTION},
-  {"delete-molecule", required_argument,  NULL, DELETE_MOLECULE_OPTION},
+  {"add-molecule",    required_argument,  NULL, OPTION_ADD_MOLECULE},
+  {"list-molecules",  no_argument,        NULL, OPTION_LIST_MOLECULES},
+  {"delete-molecule", required_argument,  NULL, OPTION_DELETE_MOLECULE},
+  {"sobolev",         required_argument,  NULL, OPTION_SOBOLEV},
   {"log-density",     no_argument,        NULL, 'L'},
   {"hz-width",        no_argument,        NULL, 'H'},
   {"help",            no_argument,        NULL, 'h'},
   {"result",          required_argument,  NULL, 'r'},
-  {"version",         no_argument,        NULL, VERSION_OPTION}
+  {"version",         no_argument,        NULL, OPTION_VERSION}
 };
 
 
@@ -96,33 +97,35 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
           opts->force_fs = true;
           break;
 
-        case ADD_MOLECULE_OPTION:
+        case OPTION_ADD_MOLECULE:
           DEBUG ("Set --add-molecule option");
           if (opts->usage_mode != UM_NONE)
             break;
-
           opts->usage_mode = UM_MOLECULAR_FILE_ADD;
           strcpy (opts->molecule_name, optarg);
           break;
 
-        case LIST_MOLECULES_OPTION:
+        case OPTION_LIST_MOLECULES:
           DEBUG ("Set --list-molecule option");
           if (opts->usage_mode != UM_NONE)
             break;
-
           opts->usage_mode = UM_MOLECULAR_FILE_LIST;
           break;
 
-        case DELETE_MOLECULE_OPTION:
+        case OPTION_DELETE_MOLECULE:
           DEBUG ("Set --delete-molecule option");
           if (opts->usage_mode != UM_NONE)
             break;
-
           opts->usage_mode = UM_MOLECULAR_FILE_DELETE;
           strcpy (opts->molecule_name, optarg);
           break;
 
-        case VERSION_OPTION:
+        case OPTION_SOBOLEV:
+          DEBUG ("Set --sobolev option");
+          opts->usage_mode = UM_SOBOLEV;
+          break;
+
+        case OPTION_VERSION:
           DEBUG ("Set --version option");
           opts->usage_mode = UM_VERSION;
           break;

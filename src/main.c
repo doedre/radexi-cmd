@@ -42,6 +42,7 @@
 #include "utils/debug.h"
 
 RXI_STAT usage_dialogue (const struct rxi_options *opts);
+RXI_STAT usage_sobolev (const struct rxi_options *opts);
 
 RXI_STAT usage_print_version ();
 RXI_STAT usage_print_help ();
@@ -57,6 +58,10 @@ main (int argc, char **argv)
     {
     case UM_DIALOGUE:
       return_value = usage_dialogue (&opts);
+      break;
+
+    case UM_SOBOLEV:
+      return_value = usage_sobolev (&opts);
       break;
 
     case UM_MOLECULAR_FILE_ADD:
@@ -126,6 +131,11 @@ usage_dialogue (const struct rxi_options *opts)
   rxi_db_molecule_radtr_free (mol_data);
   rxi_calc_data_free (calc_data);
   return stat;
+}
+
+RXI_STAT
+usage_sobolev (const struct rxi_options *opts)
+{
 }
 
 RXI_STAT

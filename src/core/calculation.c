@@ -565,12 +565,6 @@ rxi_calc_optical_depth (const double coldens, const double line_width,
     const double energy, const double einst, const double ustat,
     const double lstat, const double upop, const double lpop)
 {
-  /*DEBUG ("1e-5 * (%.3e * %.3e / %.3e - %.3e) * %.3e * %.3e\n\
-                                                                 ----------------------------------------------------------------------------\n\
-                                                                  %.3e * 1.0645 * 8 * pi * %.3e\n",
-  lpop, ustat, lstat, upop, einst, coldens,
-  gsl_pow_3 (energy), line_width);
-*/
   return
           (1e-5 * (lpop * ustat / lstat - upop) * einst * coldens)
       / //--------------------------------------------------------

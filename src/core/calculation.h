@@ -3,6 +3,9 @@
  * @brief Defines high level functions for main calculations.
  */
 
+#ifndef RXI_CORE_CALCULATION_H
+#define RXI_CORE_CALCULATION_H
+
 #include "rxi_common.h"
 
 /// @brief Initializes `struct rxi_calc_data` to start calculations.
@@ -38,3 +41,5 @@ double rxi_calc_escape_prob (const double tau, const GEOMETRY geom);
 double rxi_calc_optical_depth (const double coldens, const double line_width,
     const double energy, const double einst, const double ustat,
     const double lstat, const double upop, const double lpop);
+
+#endif  // RXI_CORE_CALCULATION_H
