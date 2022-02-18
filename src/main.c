@@ -37,6 +37,7 @@
 #include "rxi_common.h"
 #include "core/dialogue.h"
 #include "core/calculation.h"
+#include "core/output.h"
 #include "utils/options.h"
 #include "utils/database.h"
 #include "utils/debug.h"
@@ -109,21 +110,13 @@ usage_dialogue (const struct rxi_options *opts)
   CHECK ((stat == RXI_OK) && "Calculation data initialization error");
   stat = rxi_calc_find_rates (calc_data, info->numof_enlev, info->numof_radtr);
 
-  struct rxi_db_molecule_radtr *mol_data;
-  rxi_db_molecule_radtr_malloc (&mol_data, info->numof_radtr);
-  rxi_db_read_molecule_radtr (inp_data->name, mol_data);
+  rxi_calc_results (calc_data, info->numof_radtr);
 
-  for (int i = 0; i < info->numof_radtr; ++i)
-    {
-      int u = calc_data->up[i] - 1;
-      int l = calc_data->low[i] - 1;
-      DEBUG ("%d %d |%4.4f: %.3e  ", u, l, mol_data->freq[i],
-             gsl_matrix_get (calc_data->tau, u, l));
-    }
+  stat = rxi_out_result (calc_data, opts);
+  CHECK ((stat == RXI_OK) && "Error in result printing");
 
   free (inp_data);
   rxi_db_molecule_info_free (info);
-  rxi_db_molecule_radtr_free (mol_data);
   rxi_calc_data_free (calc_data);
   return stat;
 }

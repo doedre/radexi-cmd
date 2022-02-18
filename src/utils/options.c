@@ -37,6 +37,7 @@ rxi_set_default_options (struct rxi_options *opts)
   opts->no_freq_limits = false;
   opts->quite_start = false;
   opts->cmd_output = false;
+  opts->no_result_file = false;
   opts->dens_log_scale = false;
   opts->hz_width = false;
   opts->user_defined_out_file_path = false;
@@ -51,7 +52,7 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
   int option_index = 0;
   int opt;
   while ((opt = getopt_long (argc, argv, 
-                              ":flLqHhor:", 
+                              ":flLqHhoxr:", 
                               long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -78,6 +79,12 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
 
         case 'o':
           DEBUG ("Set -o option");
+          opts->cmd_output = true;
+          break;
+
+        case 'x':
+          DEBUG ("Set -x option");
+          opts->no_result_file = true;
           break;
 
         case 'q':

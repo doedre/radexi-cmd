@@ -12,6 +12,9 @@
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_const_cgsm.h>
 
+//! Program version.
+#define RXI_VERSION "0.2"
+
 //! Maximum path size.
 #define RXI_PATH_MAX 1024
 //! Maximum string size to read from files.
@@ -36,6 +39,8 @@
 #define RXI_HP GSL_CONST_CGSM_PLANCKS_CONSTANT_H
 //! Speed of light
 #define RXI_SOL GSL_CONST_CGSM_SPEED_OF_LIGHT
+//! Boltzmann constant 
+#define RXI_KB GSL_CONST_CGSM_BOLTZMANN
 
 /// @brief Status codes for functions that may fail.
 ///
@@ -100,6 +105,9 @@ struct rxi_options
 
   //! Print result in `stdout`. `-o` option.
   bool cmd_output;
+
+  //! Do not create file for results. `-x` option.
+  bool no_result_file;
 
   //! Don't print starting message. `-q` option.
   bool quite_start;
@@ -300,11 +308,9 @@ struct rxi_db_molecule
 /// @brief Holds all information for calculation and output.
 struct rxi_calc_data
 {
-  double *temp_kin;
-  double *temp_bg;
-  double *col_dens;
-  double *line_width;
-  GEOMETRY *geom;
+  struct rxi_input_data input;
+  size_t numof_enlev;
+  size_t numof_radtr;
   int *up;
   int *low;
 
@@ -320,6 +326,8 @@ struct rxi_calc_data
   gsl_vector *pop;
   gsl_matrix *tau;
   gsl_matrix *excit_temp;
+  gsl_matrix *antenna_temp;
+  gsl_matrix *radiation_temp;
 };
 
 /// @brief Memory allocation for `struct rxi_calc_data`.
@@ -335,5 +343,33 @@ RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
 /// @brief Free memory for `struct rxi_db_molecule_coll_part`.
 /// @param *mol_cp -- pointer to a structure which needs to be freed.
 void rxi_calc_data_free (struct rxi_calc_data *calc_data);
+
+/// @brief Converts `enum GEOMETRY` to string.
+char *geomtoname (GEOMETRY geom);
+
+/// @brief Converts collisional partner number to string.
+///
+/// Allocates memory for the returned string, so it should be freed after
+/// usage. Convert `COLL_PART` to predefined string names.
+/// @param cp -- collision partner of `enum COLL_PART` type.
+/// @return Allocated string with collision partner's name.
+char *numtoname (COLL_PART cp);
+
+/// @brief Converts string to collisional partner number.
+///
+/// Converts collision partner's name to `enum COLL_PART`.
+/// @param *name -- string with name.
+/// @return One of the collisional partners or `NO_MOLECULE` on error.
+COLL_PART nametonum (const char *name);
+
+/// @brief Get number for specified collision partner from database info file.
+///
+/// Searches database (through `struct rxi_db_molecule_info`) for specified
+/// collision partner number in database (not `enum COLL_PART`).
+/// @param *mol_info -- structure with information about the molecule from
+/// local database;
+/// @param cp -- collision partner which number needs to be defined.
+/// @return Count number for specified collision partner.
+int8_t cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp);
 
 #endif  // RXI_COMMON_H
