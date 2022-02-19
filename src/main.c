@@ -109,8 +109,7 @@ usage_dialogue (const struct rxi_options *opts)
   stat = rxi_calc_data_init (calc_data, inp_data, info);
   CHECK ((stat == RXI_OK) && "Calculation data initialization error");
   stat = rxi_calc_find_rates (calc_data, info->numof_enlev, info->numof_radtr);
-
-  rxi_calc_results (calc_data, info->numof_radtr);
+  CHECK ((stat == RXI_OK) && "Error in rates calculation");
 
   stat = rxi_out_result (calc_data, opts);
   CHECK ((stat == RXI_OK) && "Error in result printing");

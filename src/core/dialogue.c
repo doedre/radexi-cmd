@@ -447,17 +447,17 @@ rxi_dialog_input (struct rxi_input_data *inp_data,
   status = get_coldens (&inp_data->col_dens);
   CHECK ((status == RXI_OK) && "Error getting column density");
 
-  printf ("   ## Enter line width\n");
+  printf ("  ## Enter line width\n");
 
   status = get_line_width (&inp_data->line_width);
   CHECK ((status == RXI_OK) && "Error getting line width");
 
-  printf ("   ## Enter geometry\n");
+  printf ("  ## Enter geometry\n");
 
   status = get_geometry (&inp_data->geom);
   CHECK ((status == RXI_OK) && "Error getting geometry");
 
-  printf ("   ## Enter collision partners and their densities");
+  printf ("  ## Enter collision partners and their densities");
 
   status = get_collision_partners (inp_data);
   CHECK ((status == RXI_OK) && "Error getting collision partners");
