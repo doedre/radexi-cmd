@@ -31,7 +31,6 @@ rxi_database_path ()
   strcpy (db_path, home_path);
   strcat (db_path, "/.local/share/radexi/");
 
-  ASSERT (db_path);
   return db_path;
 }
 
@@ -53,7 +52,6 @@ rxi_config_path ()
   strcpy (config_path, home_path);
   strcat (config_path, "/.config/radexi/");
 
-  ASSERT (config_path);
   return config_path;
 }
 
@@ -592,7 +590,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
   cd->term = term;
   cd->weight = weight;
   cd->einst = einst;
-  cd->energy = energy;
+  cd->freq = energy;
   cd->coll_rates = coll_rates;
   cd->rates = rates;
   cd->tot_rates = tot_rates;
@@ -621,7 +619,7 @@ rxi_calc_data_free (struct rxi_calc_data *calc_data)
   gsl_vector_free (calc_data->term);
   gsl_vector_free (calc_data->weight);
   gsl_matrix_free (calc_data->einst);
-  gsl_matrix_free (calc_data->energy);
+  gsl_matrix_free (calc_data->freq);
   gsl_matrix_free (calc_data->coll_rates);
   gsl_matrix_free (calc_data->rates);
   gsl_vector_free (calc_data->tot_rates);

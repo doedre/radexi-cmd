@@ -317,7 +317,7 @@ struct rxi_calc_data
   gsl_vector *term;
   gsl_vector *weight;
   gsl_matrix *einst;
-  gsl_matrix *energy;
+  gsl_matrix *freq;
   gsl_matrix *coll_rates;
   gsl_vector *tot_rates;
   gsl_matrix *bgfield;
@@ -343,6 +343,19 @@ RXI_STAT rxi_calc_data_malloc (struct rxi_calc_data **calc_data,
 /// @brief Free memory for `struct rxi_db_molecule_coll_part`.
 /// @param *mol_cp -- pointer to a structure which needs to be freed.
 void rxi_calc_data_free (struct rxi_calc_data *calc_data);
+
+/// @brief For output results sorting.
+struct rxi_calc_results
+{
+  int up;
+  int low;
+  double xnu;
+  double spfreq;
+  double tau;
+  double population;
+  double excit_temp;
+  double antenna_temp;
+};
 
 /// @brief Converts `enum GEOMETRY` to string.
 char *geomtoname (GEOMETRY geom);

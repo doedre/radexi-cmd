@@ -298,8 +298,8 @@ rxi_calc_data_fill (const struct rxi_input_data *inp_data,
       calc_data->low[i] = mol_radtr->low[i];
       gsl_matrix_set (calc_data->einst, mol_radtr->up[i] - 1,
                       mol_radtr->low[i] - 1, mol_radtr->einst[i]);
-      gsl_matrix_set (calc_data->energy, mol_radtr->up[i] - 1,
-                      mol_radtr->low[i] - 1, mol_radtr->up_en[i]);
+      gsl_matrix_set (calc_data->freq, mol_radtr->up[i] - 1,
+                      mol_radtr->low[i] - 1, mol_radtr->freq[i]);
     }
 
   DEBUG ("Setting collision rates");
@@ -405,7 +405,7 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
       gsl_vector_set_all (b, 0);
       gsl_vector_set (b, b->size - 1, 1);
       gsl_vector *x = gsl_vector_alloc (n_enlev);
-
+/*
       for (int i = 0; i < n_enlev; ++i)
         {
           for (int j = 0; j < n_enlev; ++j)
@@ -414,14 +414,14 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
             }
           printf ("\n");
         }
-
+*/
       gsl_permutation *p = gsl_permutation_alloc (n_enlev);
       int s;
       gsl_linalg_LU_decomp (data->rates, p, &s);
       gsl_linalg_LU_solve (data->rates, p, b, x);
       //gsl_linalg_HH_solve (data->rates, b, x);
 
-      gsl_vector_fprintf (stdout, x, "%.3e");
+      /*gsl_vector_fprintf (stdout, x, "%.3e");*/
       double total_pop = 0;
       for (int i = 0; i < n_enlev; ++i)
         total_pop += gsl_vector_get (x, i);
@@ -495,6 +495,8 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
               iter < 300);
 
   gsl_vector_free (prev_pop);
+
+  rxi_calc_results (data, n_radtr);
 
   return RXI_OK;
 }
