@@ -2,6 +2,6 @@ compile_commands.json
 .ycm_extra_conf.py
 *.dat
 **/html
-./bin
-./.cache
-./Radex
+bin
+.cache
+Radex
