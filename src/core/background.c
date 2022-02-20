@@ -34,4 +34,3 @@ rxi_calc_bgfield (struct rxi_calc_data *data,
       gsl_matrix_set (data->bgfield, u, l, intens);
   }
 }
-
