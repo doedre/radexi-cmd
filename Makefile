@@ -1,29 +1,42 @@
-bin/radexi : main.o linenoise.o dialogue.o options.o readdata.o moldata.o bgfield.o matrix.o output.o
-	gcc -std=c99 -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas bin/main.o bin/linenoise.o bin/readdata.o bin/moldata.o bin/dialogue.o bin/options.o bin/bgfield.o bin/matrix.o bin/output.o -o bin/radexi
+CFLAGS := -Wall -Wextra --pedantic -DNDEBUG
+CC := clang
+INCLUDE := -I./src -I./3rdparty
+LIBS := -lgsl -lm -lgslcblas
 
-main.o : src/main.c inc/radexi.h
-	gcc -Wall -Wextra -pedantic -I./inc -c src/main.c -o bin/main.o
+TARGET_NAME := radexi
+BUILD_DIR := ./bin
+OBJ_DIR := ./.obj
+SRC_DIR := ./src ./3rdparty
 
-options.o : src/options.c inc/radexi.h
-	gcc -Wall -Wextra -pedantic -I./inc -c src/options.c -o bin/options.o
+SOURCES := \
+	3rdparty/linenoise/linenoise.c \
+	3rdparty/minIni/minIni.c \
+	src/core/background.c \
+	src/core/calculation.c \
+	src/core/dialogue.c \
+	src/core/output.c \
+	src/utils/cli_tools.c \
+	src/utils/csv.c \
+	src/utils/database.c \
+	src/utils/options.c \
+	src/main.c \
+	src/rxi_common.c
 
-readdata.o : src/readdata.c inc/radexi.h
-	gcc -Wall -Wextra -pedantic -I./inc -c src/readdata.c -o bin/readdata.o
+OBJECTS := $(patsubst %.c,$(OBJ_DIR)/%.o,$(SOURCES))
 
-dialogue.o : src/dialogue.c inc/radexi.h inc/linenoise.h
-	gcc -Wall -Wextra -pedantic -I./inc -lm -c src/dialogue.c -o bin/dialogue.o
+TARGET := $(BUILD_DIR)/$(TARGET_NAME)
+	
+$(OBJ_DIR)/%.o: %.c
+	@echo [CC] $<
+	@mkdir -p $(dir $@)
+	@$(CC) $(CFLAGS) $(INCLUDE) -c $< -o $@
 
-moldata.o : src/moldata.c inc/radexi.h inc/linenoise.h
-	gcc -Wall -Wextra -pedantic -I./inc -lm -c src/moldata.c -o bin/moldata.o
+$(TARGET): $(OBJECTS)
+	$(CC) $(CFLAGS) $(INCLUDE) $(LIBS) $(OBJECTS) -o $@
 
-bgfield.o : src/bgfield.c inc/radexi.h inc/linenoise.h
-	gcc -Wall -Wextra -pedantic -I./inc -lm -c src/bgfield.c -o bin/bgfield.o
+debug: CFLAGS := $(filter-out -DNDEBUG,$(CFLAGS))
+debug: $(TARGET)
 
-matrix.o : src/matrix.c inc/radexi.h inc/linenoise.h
-	gcc -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas -c src/matrix.c -o bin/matrix.o
-
-output.o : src/matrix.c inc/radexi.h inc/linenoise.h
-	gcc -Wall -Wextra -pedantic -I./inc -lm -lgsl -lgslcblas -c src/output.c -o bin/output.o
-
-linenoise.o : src/linenoise.c inc/linenoise.h
-	gcc -Wall -Wextra -pedantic -I./inc -c src/linenoise.c -o bin/linenoise.o
+clean:
+	rm -rf $(OBJ_DIR)
+	rm $(TARGET)
