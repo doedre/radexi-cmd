@@ -1,4 +1,4 @@
-CFLAGS := -Wall -Wextra --pedantic -DNDEBUG
+CFLAGS := -std=gnu11 -Wall -Wextra --pedantic -DNDEBUG
 CC := clang
 INCLUDE := -I./src -I./3rdparty
 LIBS := -lgsl -lm -lgslcblas

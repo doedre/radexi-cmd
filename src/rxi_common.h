@@ -22,7 +22,7 @@
 //! Maximum string size for quantum numbers.
 #define RXI_QNUM_MAX 30
 //! Maximum molecule name size.
-#define RXI_MOLECULE_MAX 15
+#define RXI_MOLECULE_MAX 50
 //! Maximum number of collisional temperatures.
 #define RXI_COLL_TEMPS_MAX 50
 //! Maximum number of collisional parameters.
@@ -171,6 +171,7 @@ GEOMETRY;
 struct rxi_input_data
 {
   char    name[RXI_MOLECULE_MAX]; //!< Molecule name from local database.
+  int8_t  numof_molecules;        //!< Number of molecules.
   float   sfreq;                  //!< Starting frequency for output [GHz].
   float   efreq;                  //!< Ending frequency for output [GHz].
   double  temp_kin;               //!< Kinetic temperature [K].
@@ -384,5 +385,7 @@ COLL_PART nametonum (const char *name);
 /// @param cp -- collision partner which number needs to be defined.
 /// @return Count number for specified collision partner.
 int8_t cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp);
+
+void remove_spaces (char *str);
 
 #endif  // RXI_COMMON_H

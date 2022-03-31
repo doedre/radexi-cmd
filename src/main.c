@@ -94,29 +94,80 @@ usage_dialogue (const struct rxi_options *opts)
   struct rxi_input_data *inp_data = malloc (sizeof (*inp_data));
   RXI_STAT stat = rxi_dialog_input (inp_data, opts);
   CHECK ((stat == RXI_OK) && "Dialog errors");
-  DEBUG ("Name: %s, cp: %u", inp_data->name, inp_data->coll_part[0]);
+  if (stat != RXI_OK)
+    {
+      free (inp_data);
+      return stat;
+    }
 
-  struct rxi_db_molecule_info *info;
-  stat = rxi_db_molecule_info_malloc (&info);
-  CHECK ((stat == RXI_OK) && "Info memory allocation error");
-  stat = rxi_db_read_molecule_info (inp_data->name, info);
-  CHECK ((stat == RXI_OK) && "Info file error");
+  char *names[inp_data->numof_molecules];
+  int8_t n = 0;
+  for (char *tok = strtok (inp_data->name, " "); tok; tok = strtok (NULL, " "))
+    names[n] = tok;
+  
+  struct rxi_db_molecule_info *info[inp_data->numof_molecules];
+  struct rxi_calc_data *calc_data[inp_data->numof_molecules];
+  DEBUG ("Number of molecules: %d", inp_data->numof_molecules);
+  for (int8_t i = 0; i < inp_data->numof_molecules; ++i)
+    {
+      stat = rxi_db_molecule_info_malloc (&info[i]);
+      CHECK ((stat == RXI_OK) && "Info memory allocation error");
+      if (stat != RXI_OK)
+        {
+          free (inp_data);
+          rxi_db_molecule_info_free (info[i]);
+          return stat;
+        }
 
-  struct rxi_calc_data *calc_data;
-  stat = rxi_calc_data_malloc (&calc_data, info->numof_enlev,
-                               info->numof_radtr);
-  CHECK ((stat == RXI_OK) && "Calculation data memory allocation error");
-  stat = rxi_calc_data_init (calc_data, inp_data, info);
-  CHECK ((stat == RXI_OK) && "Calculation data initialization error");
-  stat = rxi_calc_find_rates (calc_data, info->numof_enlev, info->numof_radtr);
-  CHECK ((stat == RXI_OK) && "Error in rates calculation");
+      remove_spaces (names[i]);
+      stat = rxi_db_read_molecule_info (names[i], info[i]);
+      CHECK ((stat == RXI_OK) && "Info file error");
+      if (stat != RXI_OK)
+        {
+          free (inp_data);
+          rxi_db_molecule_info_free (info[i]);
+          return stat;
+        }
 
-  stat = rxi_out_result (calc_data, opts);
-  CHECK ((stat == RXI_OK) && "Error in result printing");
+      stat = rxi_calc_data_malloc (&calc_data[i], info[i]->numof_enlev,
+                                   info[i]->numof_radtr);
+      CHECK ((stat == RXI_OK) && "Calculation data memory allocation error");
+      if (stat != RXI_OK)
+        {
+          free (inp_data);
+          rxi_db_molecule_info_free (info[i]);
+          rxi_calc_data_free (calc_data[i]);
+          return stat;
+        }
+
+      stat = rxi_calc_data_init (calc_data[i], inp_data, info[i]);
+      CHECK ((stat == RXI_OK) && "Calculation data initialization error");
+      if (stat != RXI_OK)
+        {
+          free (inp_data);
+          rxi_db_molecule_info_free (info[i]);
+          rxi_calc_data_free (calc_data[i]);
+          return stat;
+        }
+
+      stat = rxi_calc_find_rates (calc_data[i], info[i]->numof_enlev,
+                                  info[i]->numof_radtr);
+      CHECK ((stat == RXI_OK) && "Error in rates calculation");
+      if (stat != RXI_OK)
+        {
+          free (inp_data);
+          rxi_db_molecule_info_free (info[i]);
+          rxi_calc_data_free (calc_data[i]);
+          return stat;
+        }
+
+      stat = rxi_out_result (calc_data[i], opts);
+      CHECK ((stat == RXI_OK) && "Error in result printing");
+    }
 
   free (inp_data);
-  rxi_db_molecule_info_free (info);
-  rxi_calc_data_free (calc_data);
+  /*rxi_db_molecule_info_free (info);*/
+  /*rxi_calc_data_free (calc_data);*/
   return stat;
 }
 

@@ -719,3 +719,10 @@ cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp)
 
   return number;
 }
+
+void remove_spaces (char *str)
+{
+  char *space = str;
+  while ((space = strchr(space, ' ')) != NULL)
+    memmove (space, space + 1, strlen (str) - (space - str));
+}
