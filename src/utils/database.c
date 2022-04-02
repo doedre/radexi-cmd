@@ -595,8 +595,7 @@ rxi_db_molecule_iter (DIR *dir, char *name)
   struct stat sb;
   if ((entry = readdir (dir)) != NULL)
     {
-      strncpy (name, entry->d_name, RXI_MOLECULE_MAX);
-      /* Skips folders starting at '.'  */
+      strncpy (name, entry->d_name, 15);
       if (strncmp (entry->d_name, ".", 1) == 0)
         return -1;
 

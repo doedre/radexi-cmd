@@ -40,25 +40,25 @@ rxi_check_path (const char *path)
 }
 
 void
-rxi_out_print (const struct rxi_calc_data *data,
+rxi_out_print (const struct rxi_calc_data **data,
                const struct rxi_calc_results *results)
 {
   DEBUG ("Print resuts to command line");
-  char *geometry = geomtoname (data->input.geom);
+  char *geometry = geomtoname (data[0]->input.geom);
   
   printf ("* Radexi version             : " RXI_VERSION "\n");
   printf ("* Geometry                   : %s\n", geometry);
   free (geometry);
-  printf ("* Molecule                   : %s\n", data->input.name);
-  printf ("* Kinetic temperature    [K] : %.3f\n", data->input.temp_kin);
-  printf ("* Background temperature [K] : %.3f\n", data->input.temp_bg);
-  printf ("* Column density      [cm-2] : %.3e\n", data->input.col_dens);
-  printf ("* Line width          [km/s] : %.3f\n", data->input.line_width);
-  for (int8_t i = 0; i < data->input.n_coll_partners; i++)
+  printf ("* Molecule                   : %s\n", data[0]->input.name);
+  printf ("* Kinetic temperature    [K] : %.3f\n", data[0]->input.temp_kin);
+  printf ("* Background temperature [K] : %.3f\n", data[0]->input.temp_bg);
+  printf ("* Column density      [cm-2] : %.3e\n", data[0]->input.col_dens);
+  printf ("* Line width          [km/s] : %.3f\n", data[0]->input.line_width);
+  for (int8_t i = 0; i < data[0]->input.n_coll_partners; ++i)
     {
-      char *cp_name = numtoname (data->input.coll_part[i]);
+      char *cp_name = numtoname (data[0]->input.coll_part[i]);
       printf ("* Density of %9s[cm-3] : %.3e\n", cp_name,
-              data->input.coll_part_dens[i]);
+              data[0]->input.coll_part_dens[i]);
       free (cp_name);
     }
 
@@ -71,18 +71,22 @@ rxi_out_print (const struct rxi_calc_data *data,
   strcpy (line_format, "%3d -> %3d  %8.1f  %12.4f  %12.4f  %10.3f  %10.3e \
  %10.3e  %10.3e  %10.3e  %10.3e  %10.3e  %2d\n");
 
-  for (unsigned int i = 0; i < data->numof_radtr; ++i)
+  int size = 0;
+  for (size_t i = 0; i < data[0]->input.numof_molecules; ++i)
+      size += data[i]->numof_radtr;
+
+  for (unsigned int i = 0; i < size; ++i)
     {
       const int u = results[i].up - 1;
       const int l = results[i].low - 1;
       const float freq = results[i].spfreq;
 
-      if ((freq < data->input.sfreq) || (freq > data->input.efreq))
+      if ((freq < data[0]->input.sfreq) || (freq > data[0]->input.efreq))
         continue;
 
       int blend_count = 0;
-      float line_width_freq = data->input.line_width * freq * 1e5 / RXI_SOL;
-      for (size_t j = 0; j < data->numof_radtr; ++j)
+      float line_width_freq = data[0]->input.line_width * freq * 1e5 / RXI_SOL;
+      for (size_t j = 0; j < size; ++j)
         {
           if (i == j)
             continue;
@@ -98,10 +102,10 @@ rxi_out_print (const struct rxi_calc_data *data,
       const double xt = gsl_pow_3 (results[i].xnu);
       printf (line_format, u, l, freq * 1e9 * RXI_HP / RXI_KB, freq,
           RXI_SOL / freq / 1e5, results[i].excit_temp, results[i].tau,
-          results[i].antenna_temp, gsl_vector_get (data->pop, u),
-          gsl_vector_get (data->pop, l),
-          1.0645 * data->input.line_width * results[i].antenna_temp,
-          1.0645 * 8 * M_PI * RXI_KB * data->input.line_width
+          results[i].antenna_temp, gsl_vector_get (data[0]->pop, 0),
+          gsl_vector_get (data[0]->pop, 0),
+          1.0645 * data[0]->input.line_width * results[i].antenna_temp,
+          1.0645 * 8 * M_PI * RXI_KB * data[0]->input.line_width
             * results[i].antenna_temp * xt,
           blend_count);
     }
@@ -126,27 +130,36 @@ rxi_out_result_sort (struct rxi_calc_results *results, size_t results_size)
 }
 
 RXI_STAT
-rxi_out_result (const struct rxi_calc_data *data,
+rxi_out_result (struct rxi_calc_data *data[RXI_MOLECULE_MAX],
                 const struct rxi_options *opts)
 {
-  struct rxi_calc_results output[data->numof_radtr];
-  for (size_t i = 0; i < data->numof_radtr; ++i)
+  int size = 0;
+  for (size_t i = 0; i < data[0]->input.numof_molecules; ++i)
+      size += data[i]->numof_radtr;
+
+  struct rxi_calc_results output[size];
+  int k = 0;
+  for (size_t i = 0; i < data[0]->input.numof_molecules; ++i)
     {
-      output[i].up = data->up[i];
-      output[i].low = data->low[i];
-      output[i].spfreq = gsl_matrix_get (data->freq, data->up[i] - 1,
-                                         data->low[i] - 1);
-      output[i].xnu = gsl_vector_get (data->term, output[i].up - 1)
-                      - gsl_vector_get (data->term, output[i].low - 1);
-      output[i].tau = gsl_matrix_get (data->tau, data->up[i] - 1,
-                                      data->low[i] - 1);
-      output[i].excit_temp =  gsl_matrix_get (data->excit_temp,
-          data->up[i] - 1, data->low[i] - 1);
-      output[i].antenna_temp =  gsl_matrix_get (data->antenna_temp,
-          data->up[i] - 1, data->low[i] - 1);
+      for (size_t j = 0; j < data[i]->numof_radtr; ++j)
+        {
+          output[k].up = data[i]->up[j];
+          output[k].low = data[i]->low[j];
+          output[k].spfreq = gsl_matrix_get (data[i]->freq, data[i]->up[j] - 1,
+                                             data[i]->low[j] - 1);
+          output[k].xnu = gsl_vector_get (data[i]->term, output[k].up - 1)
+                          - gsl_vector_get (data[i]->term, output[j].low - 1);
+          output[k].tau = gsl_matrix_get (data[i]->tau, data[i]->up[j] - 1,
+                                          data[i]->low[j] - 1);
+          output[k].excit_temp =  gsl_matrix_get (data[i]->excit_temp,
+              data[i]->up[i] - 1, data[i]->low[j] - 1);
+          output[k].antenna_temp =  gsl_matrix_get (data[i]->antenna_temp,
+              data[i]->up[i] - 1, data[i]->low[j] - 1);
+          ++k;
+        }
     }
 
-  rxi_out_result_sort (output, data->numof_radtr);
+  rxi_out_result_sort (output, size);
   
   if (opts->cmd_output)
     rxi_out_print (data, output);
@@ -189,26 +202,26 @@ rxi_out_result (const struct rxi_calc_data *data,
       return RXI_ERR_FILE;
     }
 
-  char *geometry = geomtoname (data->input.geom);
+  char *geometry = geomtoname (data[0]->input.geom);
   
   fprintf (result_file, "* Radexi version             : " RXI_VERSION "\n");
   fprintf (result_file, "* Geometry                   : %s\n", geometry);
   free (geometry);
   fprintf (result_file, "* Molecule                   : %s\n",
-           data->input.name);
+           data[0]->input.name);
   fprintf (result_file, "* Kinetic temperature    [K] : %.3f\n",
-           data->input.temp_kin);
+           data[0]->input.temp_kin);
   fprintf (result_file, "* Background temperature [K] : %.3f\n",
-           data->input.temp_bg);
+           data[0]->input.temp_bg);
   fprintf (result_file, "* Column density      [cm-2] : %.3e\n",
-           data->input.col_dens);
+           data[0]->input.col_dens);
   fprintf (result_file, "* Line width          [km/s] : %.3f\n",
-           data->input.line_width);
-  for (int8_t i = 0; i < data->input.n_coll_partners; i++)
+           data[0]->input.line_width);
+  for (int8_t i = 0; i < data[0]->input.n_coll_partners; i++)
     {
-      char *cp_name = numtoname (data->input.coll_part[i]);
+      char *cp_name = numtoname (data[0]->input.coll_part[i]);
       fprintf (result_file, "* Density of %9s[cm-3] : %.3e\n", cp_name,
-               data->input.coll_part_dens[i]);
+               data[0]->input.coll_part_dens[i]);
       free (cp_name);
     }
 
@@ -223,18 +236,18 @@ FLUX\n");
   strcpy (line_format, "%3d -> %3d  %8.1f  %12.4f  %12.4f  %10.3f  %10.3e \
  %10.3e  %10.3e  %10.3e  %10.3e  %10.3e  %2d\n");
 
-  for (unsigned int i = 0; i < data->numof_radtr; ++i)
+  for (unsigned int i = 0; i < size; ++i)
     {
       const int u = output[i].up - 1;
       const int l = output[i].low - 1;
       const float freq = output[i].spfreq;
 
-      if ((freq < data->input.sfreq) || (freq > data->input.efreq))
+      if ((freq < data[0]->input.sfreq) || (freq > data[0]->input.efreq))
         continue;
 
       int blend_count = 0;
-      float line_width_freq = data->input.line_width * freq * 1e5 / RXI_SOL;
-      for (size_t j = 0; j < data->numof_radtr; ++j)
+      float line_width_freq = data[0]->input.line_width * freq * 1e5 / RXI_SOL;
+      for (size_t j = 0; j < size; ++j)
         {
           if (i == j)
             continue;
@@ -250,10 +263,10 @@ FLUX\n");
       const double xt = gsl_pow_3 (output[i].xnu);
       fprintf (result_file, line_format, u, l, freq * 1e9 * RXI_HP / RXI_KB,
           freq, RXI_SOL / freq / 1e5, output[i].excit_temp, output[i].tau,
-          output[i].antenna_temp, gsl_vector_get (data->pop, u),
-          gsl_vector_get (data->pop, l),
-          1.0645 * data->input.line_width * output[i].antenna_temp,
-          1.0645 * 8 * M_PI * RXI_KB * data->input.line_width
+          output[i].antenna_temp, gsl_vector_get (data[0]->pop, 0),
+          gsl_vector_get (data[0]->pop, 0),
+          1.0645 * data[0]->input.line_width * output[i].antenna_temp,
+          1.0645 * 8 * M_PI * RXI_KB * data[0]->input.line_width
             * output[i].antenna_temp * xt,
           blend_count);
     }

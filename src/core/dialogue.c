@@ -20,7 +20,7 @@ print_dialog_error ()
 }
 
 static RXI_STAT
-get_molecule_name (char *name, int8_t *numof_molecules)
+get_molecule_name (char *names, char name[10][15], int8_t *numof_molecules)
 {
   DEBUG ("Get molecule name");
 
@@ -48,12 +48,16 @@ get_molecule_name (char *name, int8_t *numof_molecules)
     }
 
   *numof_molecules = 0;
-  bool is_written = false;
-  while (!is_written && ((line = rxi_readline ("  >> ")) != NULL))
+  bool is_written = true;
+  while ((line = rxi_readline ("  >> ")) != NULL)
     {
       const char *db_path = rxi_database_path ();
 
-      for (char *tok = strtok (line, " "); tok; tok = strtok (NULL, " "))
+      int n = sscanf (line, "%s %s %s %s %s %s %s %s %s %s",
+                      name[0], name[1], name[2], name[3], name[4], name[5],
+                      name[6], name[7], name[8], name[9]);
+
+      for (int i = 0; (i < n) && is_written; ++i)
         {
           DIR *dir;
           if ((dir = opendir (db_path)) == NULL)
@@ -68,30 +72,34 @@ get_molecule_name (char *name, int8_t *numof_molecules)
           for (int p = rxi_db_molecule_iter (dir, mname); p;
                p = rxi_db_molecule_iter (dir, mname))
             {
-              if ((p > 0) && !strncmp (tok, mname, RXI_MOLECULE_MAX))
+              if ((p > 0) && !strncmp (name[i], mname, 15))
                 {
-                  strcat (name, mname);
-                  strcat (name, " ");
                   is_written = true;
                   break;
                 }
             }
           free (dir);
 
-          ++(*numof_molecules);
           if (is_written == false)
             break;
         }
       free ((void*)db_path);
 
       if (!is_written)
-        print_dialog_error ();
-      else
-        rxi_history_save (name, "mname.history");
+        {
+          print_dialog_error ();
+          continue;
+        }
+
+      rxi_history_save (line, "mname.history");
+      *numof_molecules = n;
+      strcpy(names, line);
+      break;
     }
   free (mname);
+  free (line);
 
-  DEBUG ("numof_molecules: %hhd", *numof_molecules);
+  DEBUG ("Number of molecules: %d", *numof_molecules);
 
   return status;
 }
@@ -110,36 +118,18 @@ get_frequencies (float *sfreq, float *efreq)
   CHECK ((status == RXI_OK) && "Can't load history file");
 
   status = RXI_OK;
-  bool is_written = false;
-  while (!is_written && ((line = rxi_readline ("  >> ")) != NULL))
+  while ((line = rxi_readline ("  >> ")) != NULL)
     {
-      char *start = malloc (RXI_STRING_MAX * sizeof (*start));
-      memcpy (start, line, RXI_STRING_MAX);
-      char *end;
-      int8_t i = 0;
-      for (float f = strtof (start, &end); start != end;
-           f = strtof (start, &end))
+      int n = sscanf (line, "%f %f", sfreq, efreq);
+      if ((n < 3) && (*sfreq < *efreq))
         {
-          start = end;
-          DEBUG ("Number %f", f);
-          if (i == 0)
-            *sfreq = f;
-          else if (i == 1)
-            *efreq = f;
-          ++i;
-        }
-
-      if ((i > 1) && (*sfreq < *efreq))
-        {
-          is_written = true;
           rxi_history_save (line, "freq.history");
+          break;
         }
       else
         {
           print_dialog_error ();
         }
-
-//      free (start);
     }
 
   free (line);
@@ -331,40 +321,40 @@ parse_collision_partners (char *line, COLL_PART *coll_part,
       CHECK (pair);
       memcpy (pair, tok, RXI_STRING_MAX);
 
-      for (char *value = strtok (pair, " "); value; value = strtok (NULL, " "))
+      int n = sscanf (tok, "%s %lf", pair, &coll_part_dens[i]);
+      COLL_PART cp = nametonum (pair);
+      if ((cp != NO_PARTNER) && (n < 3))
         {
-          COLL_PART cp = nametonum (value);
-          if (cp != NO_PARTNER)
-            {
-              coll_part[i] = cp;
-              continue;
-            }
-
-          double d = strtod (value, NULL);
-          if ((d > 10) && (d < 1e14))
-            coll_part_dens[i] = strtod (value, NULL);
+          coll_part[i] = cp;
+          ++i;
         }
-      ++i;
     }
   *n_coll_part = i;
 }
 
 static bool
-check_coll_partner (COLL_PART cp,
-                    struct rxi_db_molecule_info *mol_info)
+check_coll_partner (COLL_PART cp, struct rxi_db_molecule_info **mol_info,
+                    int numof_molecules)
 {
   bool result = false;
-  for (int8_t i = 0; i < mol_info->numof_coll_part; ++i)
+  for (int8_t j = 0; j < numof_molecules; ++j)
     {
-      DEBUG ("Comparing collision partners %u and %u: ", cp,
-             mol_info->coll_part[i]);
-      if (cp == mol_info->coll_part[i])
+      result = false;
+      for (int8_t i = 0; i < mol_info[j]->numof_coll_part; ++i)
         {
-          result = true;
-          break;
+          DEBUG ("Comparing collision partners %u and %u: ", cp,
+                 mol_info[j]->coll_part[i]);
+          if (cp == mol_info[j]->coll_part[i])
+            {
+              result = true;
+              break;
+            }
         }
+
+      if (result == false)
+        break;
     }
-  return result;
+    return result;
 }
 
 static RXI_STAT
@@ -381,22 +371,20 @@ get_collision_partners (struct rxi_input_data *inp_data)
   CHECK ((status == RXI_OK) && "Can't load history file");
 
   status = RXI_OK;
-  struct rxi_db_molecule_info *mol_info;
-  status = rxi_db_molecule_info_malloc (&mol_info);
-  CHECK ((status == RXI_OK) && "Allocation error");
-  if (status != RXI_OK)
+  struct rxi_db_molecule_info *mol_info[inp_data->numof_molecules];
+  for (int i = 0; i < inp_data->numof_molecules; ++i)
     {
-      free (line);
-      return status;
+      status = rxi_db_molecule_info_malloc (&mol_info[i]);
+      CHECK ((status == RXI_OK) && "Allocation error");
+      if (status != RXI_OK)
+        {
+          free (line);
+          return status;
+        }
+
+      status = rxi_db_read_molecule_info (inp_data->name_list[i], mol_info[i]);
+      CHECK ((status == RXI_OK) && "Info file error");
     }
-
-  char *names[inp_data->numof_molecules];
-  int8_t n = 0;
-  for (char *tok = strtok (inp_data->name, " "); tok; tok = strtok (NULL, " "))
-    names[n] = tok;
-
-  status = rxi_db_read_molecule_info (names[0], mol_info);
-  CHECK ((status == RXI_OK) && "Info file error");
 
   bool is_written = false;
   while (!is_written && ((line = rxi_readline ("  >> ")) != NULL))
@@ -407,7 +395,8 @@ get_collision_partners (struct rxi_input_data *inp_data)
       for (int8_t i = 0; i < inp_data->n_coll_partners; ++i)
         {
           DEBUG ("Checking collision partners");
-          if (!check_coll_partner (inp_data->coll_part[i], mol_info))
+          if (!check_coll_partner (inp_data->coll_part[i], mol_info,
+                                   inp_data->numof_molecules))
             {
               print_dialog_error ();
               is_written = false;
@@ -418,11 +407,13 @@ get_collision_partners (struct rxi_input_data *inp_data)
               is_written = true;
             }
         }
-        
     }
+
   rxi_history_save (line, "coll_part.history");
 
-  rxi_db_molecule_info_free (mol_info);
+  for (int i = 0; i < inp_data->numof_molecules; ++i)
+    rxi_db_molecule_info_free (mol_info[i]);
+
   free (line);
   return status;
 }
@@ -441,7 +432,8 @@ rxi_dialog_input (struct rxi_input_data *inp_data,
 
   printf ("  ## Enter molecule name\n");
 
-  status = get_molecule_name (inp_data->name, &inp_data->numof_molecules);
+  status = get_molecule_name (inp_data->names, inp_data->name_list,
+                              &inp_data->numof_molecules);
   CHECK ((status == RXI_OK) && "Error getting molecule name");
 
   printf ("  ## Enter frequencies\n");

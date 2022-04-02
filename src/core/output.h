@@ -6,7 +6,7 @@
 #include "rxi_common.h"
 
 /// @brief Writes output depending on the user options.
-RXI_STAT rxi_out_result (const struct rxi_calc_data *data,
+RXI_STAT rxi_out_result (struct rxi_calc_data *data[RXI_MOLECULE_MAX],
                          const struct rxi_options *opts);
 
 /// @brief Checks if specified file can be written.

@@ -171,6 +171,8 @@ GEOMETRY;
 struct rxi_input_data
 {
   char    name[RXI_MOLECULE_MAX]; //!< Molecule name from local database.
+  char    names[RXI_MOLECULE_MAX];//!< Molecule name from local database.
+  char    name_list[10][15];      //!< Molecule name from local database.
   int8_t  numof_molecules;        //!< Number of molecules.
   float   sfreq;                  //!< Starting frequency for output [GHz].
   float   efreq;                  //!< Ending frequency for output [GHz].
@@ -356,6 +358,8 @@ struct rxi_calc_results
   double population;
   double excit_temp;
   double antenna_temp;
+  double upop;
+  double lpop;
 };
 
 /// @brief Converts `enum GEOMETRY` to string.

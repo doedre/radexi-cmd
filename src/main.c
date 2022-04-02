@@ -100,16 +100,13 @@ usage_dialogue (const struct rxi_options *opts)
       return stat;
     }
 
-  char *names[inp_data->numof_molecules];
-  int8_t n = 0;
-  for (char *tok = strtok (inp_data->name, " "); tok; tok = strtok (NULL, " "))
-    names[n] = tok;
-  
   struct rxi_db_molecule_info *info[inp_data->numof_molecules];
-  struct rxi_calc_data *calc_data[inp_data->numof_molecules];
+  struct rxi_calc_data *calc_data[RXI_MOLECULE_MAX];
   DEBUG ("Number of molecules: %d", inp_data->numof_molecules);
   for (int8_t i = 0; i < inp_data->numof_molecules; ++i)
     {
+      DEBUG ("%s", inp_data->name_list[i]);
+      strcpy(inp_data->name, inp_data->name_list[i]);
       stat = rxi_db_molecule_info_malloc (&info[i]);
       CHECK ((stat == RXI_OK) && "Info memory allocation error");
       if (stat != RXI_OK)
@@ -119,8 +116,8 @@ usage_dialogue (const struct rxi_options *opts)
           return stat;
         }
 
-      remove_spaces (names[i]);
-      stat = rxi_db_read_molecule_info (names[i], info[i]);
+      remove_spaces (inp_data->name_list[i]);
+      stat = rxi_db_read_molecule_info (inp_data->name_list[i], info[i]);
       CHECK ((stat == RXI_OK) && "Info file error");
       if (stat != RXI_OK)
         {
@@ -160,10 +157,10 @@ usage_dialogue (const struct rxi_options *opts)
           rxi_calc_data_free (calc_data[i]);
           return stat;
         }
-
-      stat = rxi_out_result (calc_data[i], opts);
-      CHECK ((stat == RXI_OK) && "Error in result printing");
     }
+
+  stat = rxi_out_result (calc_data, opts);
+  CHECK ((stat == RXI_OK) && "Error in result printing");
 
   free (inp_data);
   /*rxi_db_molecule_info_free (info);*/
