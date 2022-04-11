@@ -89,7 +89,7 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
           / //---------------------------------------------
                (2 * RXI_HP * RXI_SOL * gsl_pow_3 (energy));
 
-      DEBUG ("%d %d: coef = %.3e | beta %.3e", u, l, coef, beta);
+      /*DEBUG ("%d %d: coef = %.3e | beta %.3e", u, l, coef, beta);*/
 
       const double uu = gsl_matrix_get (data->rates, u, u)
                         + gsl_matrix_get (data->einst, u, l) * (beta + coef);
@@ -235,8 +235,8 @@ interpolate_cp_rate (const double kin_temp, const double *temps,
       break;
     }
 
-  DEBUG ("lcoef: %.3e | ltemp: %.3e | ucoef: %.3e | utemp: %.3e", lcoef, ltemp,
-         ucoef, utemp);
+  /*DEBUG ("lcoef: %.3e | ltemp: %.3e | ucoef: %.3e | utemp: %.3e", lcoef, ltemp,*/
+         /*ucoef, utemp);*/
   if ((ltemp < 1e-30) && (utemp < 1e-30))
     {
       // Case when kinetic temperature is lower than minimum collision rate
@@ -405,28 +405,16 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
       gsl_vector_set_all (b, 0);
       gsl_vector_set (b, b->size - 1, 1);
       gsl_vector *x = gsl_vector_alloc (n_enlev);
-/*
-      for (int i = 0; i < n_enlev; ++i)
-        {
-          for (int j = 0; j < n_enlev; ++j)
-            {
-              printf ("%9.2e  ", gsl_matrix_get (data->rates, i, j));
-            }
-          printf ("\n");
-        }
-*/
+
       gsl_permutation *p = gsl_permutation_alloc (n_enlev);
       int s;
       gsl_linalg_LU_decomp (data->rates, p, &s);
       gsl_linalg_LU_solve (data->rates, p, b, x);
       //gsl_linalg_HH_solve (data->rates, b, x);
 
-      /*gsl_vector_fprintf (stdout, x, "%.3e");*/
       double total_pop = 0;
       for (int i = 0; i < n_enlev; ++i)
         total_pop += gsl_vector_get (x, i);
-
-      DEBUG ("total population %f", total_pop);
 
       gsl_vector_memcpy (prev_pop, data->pop);
       for (int i = 0; i < n_enlev; ++i)
@@ -474,7 +462,7 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
                                      - new_excit_temp_i) / new_excit_temp_i);
 
           gsl_matrix_set (data->tau, u, l, new_tau);
-          DEBUG ("%d -> %d: %.3e", u, l, new_tau);
+          /*DEBUG ("%d -> %d: %.3e", u, l, new_tau);*/
         }
 
       for (int i = 0; i < n_enlev; ++i)
@@ -574,9 +562,6 @@ rxi_calc_results (struct rxi_calc_data *data, size_t numof_radtr)
                               RXI_FK * energy / log (wh));
             }
         }
-/*
-      const double spflux = 1.0645 * rxi->mc.line_width * ta;
-      const double enflux = 1.0645 * 8 * M_PI * kB * rxi->mc.line_width * ta * xt;*/
     }
 
   return RXI_OK;

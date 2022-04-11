@@ -29,14 +29,14 @@ bool rxi_readline_accept ()
   char *line;
   if ((line = linenoise ("  [Y/n]>> ")) != NULL)
     {
+      DEBUG ("Got %s", line);
       uint8_t symbol = tolower (line[0]);
       DEBUG ("Got %s -> %c", line, symbol);
       if (symbol == 'y')
         result = true;
-
-      free (line);
     }
 
+  free (line);
   return result;
 }
 

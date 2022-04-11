@@ -352,6 +352,7 @@ struct rxi_calc_results
 {
   int up;
   int low;
+  char name[RXI_MOLECULE_MAX];
   double xnu;
   double spfreq;
   double tau;

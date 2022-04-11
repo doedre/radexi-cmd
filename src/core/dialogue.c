@@ -57,6 +57,7 @@ get_molecule_name (char *names, char name[10][15], int8_t *numof_molecules)
                       name[0], name[1], name[2], name[3], name[4], name[5],
                       name[6], name[7], name[8], name[9]);
 
+      is_written = true;
       for (int i = 0; (i < n) && is_written; ++i)
         {
           DIR *dir;
