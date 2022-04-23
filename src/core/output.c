@@ -33,7 +33,7 @@ rxi_check_path (const char *path)
       fclose (check);
       return 0;
     }
-  else 
+  else
     {
       return -1;
     }
@@ -45,7 +45,7 @@ rxi_out_print (struct rxi_calc_data **data,
 {
   DEBUG ("Print resuts to command line");
   char *geometry = geomtoname (data[0]->input.geom);
-  
+
   printf ("* Radexi version             : " RXI_VERSION "\n");
   printf ("* Geometry                   : %s\n", geometry);
   free (geometry);
@@ -171,7 +171,7 @@ rxi_out_result (struct rxi_calc_data *data[RXI_MOLECULE_MAX],
     }
 
   rxi_out_result_sort (output, size);
-  
+
   if (opts->cmd_output)
     rxi_out_print (data, output);
 
@@ -189,7 +189,7 @@ rxi_out_result (struct rxi_calc_data *data[RXI_MOLECULE_MAX],
   stat (opts->result_path, &sb);
   if (S_ISDIR (sb.st_mode))
     {
-      strcat (path, "/");      
+      strcat (path, "/");
       strcat (path, "rxi_out.txt");
     }
 
@@ -214,7 +214,7 @@ rxi_out_result (struct rxi_calc_data *data[RXI_MOLECULE_MAX],
     }
 
   char *geometry = geomtoname (data[0]->input.geom);
-  
+
   fprintf (result_file, "* Radexi version             : " RXI_VERSION "\n");
   fprintf (result_file, "* Geometry                   : %s\n", geometry);
   free (geometry);
