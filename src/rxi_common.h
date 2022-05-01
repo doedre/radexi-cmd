@@ -27,10 +27,10 @@
 #define RXI_COLL_TEMPS_MAX 50
 //! Maximum number of collisional parameters.
 #define RXI_COLL_PARTNERS_MAX 7
-//! 
-#define RXI_ELEMENTS_MAX RXI_COLL_TEMPS_MAX + 3
+//!
+#define RXI_ELEMENTS_MAX 53
 
-//! 
+//!
 #define RXI_FK                                                                \
         GSL_CONST_CGSM_PLANCKS_CONSTANT_H * GSL_CONST_CGSM_SPEED_OF_LIGHT     \
         / GSL_CONST_CGSM_BOLTZMANN
@@ -39,7 +39,7 @@
 #define RXI_HP GSL_CONST_CGSM_PLANCKS_CONSTANT_H
 //! Speed of light
 #define RXI_SOL GSL_CONST_CGSM_SPEED_OF_LIGHT
-//! Boltzmann constant 
+//! Boltzmann constant
 #define RXI_KB GSL_CONST_CGSM_BOLTZMANN
 
 /// @brief Status codes for functions that may fail.
@@ -56,7 +56,7 @@ typedef enum RXI_STAT
   RXI_ERR_OPTS,           //!< Error in command line options.
   RXI_ERR_FILE,           //!< File opening error.
   RXI_ERR_CONV,           //!< Error with type conversion.
-  RXI_WARN_LIMITS = 10,   //!< 
+  RXI_WARN_LIMITS = 10,   //!<
   RXI_WARN_LAMDA,         //!< LAMDA's information mismatch.
   RXI_WARN_NOFILE,
   RXI_FILE_END
@@ -72,6 +72,7 @@ enum USAGE_MODE
   UM_NONE = 0,                //!< Undefined usage mode.
   UM_DIALOGUE,                //!< Standart dialog with the user.
   UM_FILE,                    //!< Read input parameters from the file.
+  UM_FIND_GOOD_FIT,           //!< Finding the best fit for entered intensities.
   UM_MOLECULAR_FILE_ADD,      //!< Add molecular data file from LAMDA.
   UM_MOLECULAR_FILE_DELETE,   //!< Delete local molecular data file.
   UM_MOLECULAR_FILE_LIST,     //!< List local molecular data files.
@@ -81,7 +82,7 @@ enum USAGE_MODE
 
 /// @brief Options to set program's global state.
 ///
-/// This program acts like state machine and these options (defined through 
+/// This program acts like state machine and these options (defined through
 /// flags on start) are used to set the global state. In my opinion this
 /// behaviour is not good from the architecture perspective, but it may help
 /// someone include this program as package in their own programs. Look for
@@ -203,7 +204,7 @@ struct rxi_db_molecule_info
 
   COLL_PART *coll_part;
   int     *numof_coll_trans;
-  int8_t  *numof_coll_temps; 
+  int8_t  *numof_coll_temps;
   gsl_matrix *coll_temps;
 };
 
@@ -226,7 +227,6 @@ struct rxi_db_molecule_enlev
   int     *level;
   double  *term;
   double  *weight;
-  char    **qnum;
 };
 
 /// @brief Memory allocation for `struct rxi_db_molecule_enlev`.
@@ -253,6 +253,11 @@ struct rxi_db_molecule_radtr
   double  *einst;
   double  *freq;
   double  *up_en;
+
+  // These parameters are entered during finding the best fit.
+  double  *intensity;
+  double  *sigma;
+  double  *fwhm;
 };
 
 /// @brief Memory allocation for `struct rxi_db_molecule_radtr`.
@@ -314,6 +319,7 @@ struct rxi_calc_data
   struct rxi_input_data input;
   size_t numof_enlev;
   size_t numof_radtr;
+  double chisq;
   int *up;
   int *low;
 
@@ -325,6 +331,7 @@ struct rxi_calc_data
   gsl_vector *tot_rates;
   gsl_matrix *bgfield;
 
+  gsl_matrix *rates_archive;
   gsl_matrix *rates;
   gsl_vector *pop;
   gsl_matrix *tau;
@@ -391,6 +398,7 @@ COLL_PART nametonum (const char *name);
 /// @return Count number for specified collision partner.
 int8_t cptonum (const struct rxi_db_molecule_info *mol_info, COLL_PART cp);
 
+/// @brief Remove spaces from passed string.
 void remove_spaces (char *str);
 
 #endif  // RXI_COMMON_H

@@ -51,7 +51,7 @@ radexi: ${BUILD_DIR} ${OBJ_DIR} ${OBJ}
 	@${CC} ${CFLAGS} ${LDFLAGS} ${addprefix ${OBJ_DIR}/,${notdir ${OBJ}}} -o ${BUILD_DIR}/$@
 
 debug: CFLAGS := $(filter-out -DNDEBUG,$(CFLAGS))
-debug: radexi 
+debug: radexi
 
 install: all
 	cp -f bin/radexi /usr/local/bin/

@@ -21,13 +21,14 @@ struct option const long_options[] = {
   {"delete-molecule", required_argument,  NULL, DELETE_MOLECULE_OPTION},
   {"log-density",     no_argument,        NULL, 'L'},
   {"hz-width",        no_argument,        NULL, 'H'},
+  {"fit",             no_argument,        NULL, 'g'},
   {"help",            no_argument,        NULL, 'h'},
   {"result",          required_argument,  NULL, 'r'},
   {"version",         no_argument,        NULL, VERSION_OPTION}
 };
 
 
-void 
+void
 rxi_set_default_options (struct rxi_options *opts)
 {
   DEBUG ("Set options to default values");
@@ -51,8 +52,8 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
   rxi_set_default_options (opts);
   int option_index = 0;
   int opt;
-  while ((opt = getopt_long (argc, argv, 
-                              ":flLqHhoxr:", 
+  while ((opt = getopt_long (argc, argv,
+                              ":flLqHghoxr:",
                               long_options, &option_index)) != -1)
     {
       switch (opt)
@@ -101,6 +102,11 @@ rxi_set_options (struct rxi_options *opts, int argc, char **argv)
         case 'f':
           DEBUG ("Set -f option");
           opts->force_fs = true;
+          break;
+
+        case 'g':
+          DEBUG ("Set -g (--fit) option");
+          opts->usage_mode = UM_FIND_GOOD_FIT;
           break;
 
         case ADD_MOLECULE_OPTION:

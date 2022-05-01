@@ -155,29 +155,6 @@ rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
   if (!me)
     goto malloc_error;
 
-  char **qnum = malloc (n_enlev * sizeof (*qnum));
-  CHECK (*qnum && "Allocation error");
-/*
-  if (!*qnum)
-    {
-      free (me);
-      goto malloc_error;
-    }
-*/
-  for (size_t i = 0; i < n_enlev; ++i)
-    {
-      qnum[i] = malloc (RXI_QNUM_MAX * sizeof (qnum[i]));
-      CHECK (qnum[i] && "Allocation error");
-      if (!qnum[i])
-        {
-          free (me);
-          free (qnum);
-          for (size_t j = 0; j < i; ++j)
-            free (qnum[j]);
-          goto malloc_error;
-        }
-    }
-
   int *level = malloc (n_enlev * sizeof (*level));
   CHECK (level && "Allocation error");
   if (!level)
@@ -208,7 +185,6 @@ rxi_db_molecule_enlev_malloc (struct rxi_db_molecule_enlev **mol_enl,
   me->level = level;
   me->term = energy;
   me->weight = weight;
-  me->qnum = qnum;
 
   *mol_enl = me;
 
@@ -226,7 +202,6 @@ rxi_db_molecule_enlev_free (struct rxi_db_molecule_enlev *mol_enl)
   free (mol_enl->level);
   free (mol_enl->term);
   free (mol_enl->weight);
-  free (mol_enl->qnum);
   free (mol_enl);
 }
 
@@ -290,11 +265,56 @@ rxi_db_molecule_radtr_malloc (struct rxi_db_molecule_radtr **mol_rat,
       goto malloc_error;
     }
 
+  double *intensity = malloc (n_radtr * sizeof (*intensity));
+  CHECK (intensity && "Allocation error");
+  if (!intensity)
+    {
+      free (mr);
+      free (up);
+      free (low);
+      free (einst);
+      free (freq);
+      free (up_en);
+      goto malloc_error;
+    }
+
+  double *sigma = malloc (n_radtr * sizeof (*sigma));
+  CHECK (sigma && "Allocation error");
+  if (!sigma)
+    {
+      free (mr);
+      free (up);
+      free (low);
+      free (einst);
+      free (freq);
+      free (up_en);
+      free (intensity);
+      goto malloc_error;
+    }
+
+  double *fwhm = malloc (n_radtr * sizeof (*fwhm));
+  CHECK (fwhm && "Allocation error");
+  if (!fwhm)
+    {
+      free (mr);
+      free (up);
+      free (low);
+      free (einst);
+      free (freq);
+      free (up_en);
+      free (intensity);
+      free (sigma);
+      goto malloc_error;
+    }
+
   mr->up = up;
   mr->low = low;
   mr->einst = einst;
   mr->freq = freq;
   mr->up_en = up_en;
+  mr->intensity = intensity;
+  mr->sigma = sigma;
+  mr->fwhm = fwhm;
 
   *mol_rat = mr;
   return RXI_OK;
@@ -381,7 +401,7 @@ RXI_STAT
 rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
                       const size_t n_radtr)
 {
-  DEBUG ("Allocation memory for calculation data structure");
+  DEBUG ("Allocating memory for calculation data structure");
   struct rxi_calc_data *cd = malloc (sizeof (*cd));
   CHECK (cd && "Allocation error");
   if (!cd)
@@ -440,6 +460,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
     }
 
   gsl_matrix *rates = gsl_matrix_calloc (n_enlev, n_enlev);
+  gsl_matrix *rates_archive = gsl_matrix_calloc (n_enlev, n_enlev);
   CHECK (rates && "Allocation error");
   if (!rates)
     {
@@ -593,6 +614,7 @@ rxi_calc_data_malloc (struct rxi_calc_data **calc_data, const size_t n_enlev,
   cd->freq = energy;
   cd->coll_rates = coll_rates;
   cd->rates = rates;
+  cd->rates_archive = rates_archive;
   cd->tot_rates = tot_rates;
   cd->tau = tau;
   cd->pop = pop;
@@ -622,6 +644,7 @@ rxi_calc_data_free (struct rxi_calc_data *calc_data)
   gsl_matrix_free (calc_data->freq);
   gsl_matrix_free (calc_data->coll_rates);
   gsl_matrix_free (calc_data->rates);
+  gsl_matrix_free (calc_data->rates_archive);
   gsl_vector_free (calc_data->tot_rates);
   gsl_vector_free (calc_data->pop);
   gsl_matrix_free (calc_data->tau);
@@ -668,7 +691,7 @@ numtoname (COLL_PART cp)
     strcpy (cp_name, "He");
   else if (cp == HII)
     strcpy (cp_name, "HII");
-  else 
+  else
     cp_name = NULL;
 
   return cp_name;

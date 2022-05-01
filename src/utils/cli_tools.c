@@ -69,7 +69,7 @@ RXI_STAT rxi_history_save (const char *line, const char *filename)
       return RXI_OK;
     }
 
-  ln_status = linenoiseHistorySave (history_file); 
+  ln_status = linenoiseHistorySave (history_file);
   CHECK ((ln_status == 0) && "linenoise error");
 
   free ((void*)history_path);
@@ -98,11 +98,15 @@ RXI_STAT rxi_history_load (const char *filename)
   strcpy (history_file, history_path);
   strcat (history_file, filename);
 
-  DEBUG ("Load command history from `%s'", history_file);
 
   linenoiseHistoryReset ();
+
+  DEBUG ("Reset history");
+
   int ln_status = linenoiseHistoryLoad (history_file);
   CHECK ((ln_status == 0) && "linenoise error");
+
+  DEBUG ("Load command history from `%s'", history_file);
 
   free ((void*)history_path);
   free (history_file);

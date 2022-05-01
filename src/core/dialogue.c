@@ -420,16 +420,11 @@ get_collision_partners (struct rxi_input_data *inp_data)
 }
 
 RXI_STAT
-rxi_dialog_input (struct rxi_input_data *inp_data,
-                  const struct rxi_options *opts)
+rxi_dialog_input (struct rxi_input_data *inp_data)
 {
   DEBUG ("Begin dialog with user");
 
   RXI_STAT status = RXI_OK;
-  if (!opts->quite_start)
-    {
-      printf ("STARTING INFO\n");
-    }
 
   printf ("  ## Enter molecule name\n");
 
@@ -467,10 +462,123 @@ rxi_dialog_input (struct rxi_input_data *inp_data,
   status = get_geometry (&inp_data->geom);
   CHECK ((status == RXI_OK) && "Error getting geometry");
 
-  printf ("  ## Enter collision partners and their densities");
+  printf ("  ## Enter collision partners and their densities\n");
 
   status = get_collision_partners (inp_data);
   CHECK ((status == RXI_OK) && "Error getting collision partners");
 
   return status;
+}
+
+RXI_STAT
+get_line_intensities (struct rxi_db_molecule_radtr *radtr,
+    const float sfreq, const float efreq, const size_t numof_radtr)
+{
+  DEBUG ("Get line intensities");
+
+  RXI_STAT status = rxi_history_load ("intensities.history");
+  CHECK ((status == RXI_OK) && "Can't load history file");
+
+  DEBUG ("History loaded");
+  for (size_t i = 0; i < numof_radtr; ++i)
+    {
+      if (radtr->freq[i] < sfreq)
+        continue;
+      else if (radtr->freq[i] > efreq)
+        break;
+
+      char format[150];
+      sprintf (format, "  %.4f >> ", radtr->freq[i]);
+      char *line = malloc (RXI_PATH_MAX * sizeof (*line));
+      while ((line = rxi_readline (format)) != NULL)
+        {
+          int n = sscanf (line, "%lf %lf %lf", &radtr->intensity[i],
+                          &radtr->sigma[i], &radtr->fwhm[i]);
+          if (n != 3)
+            continue;
+          else
+            break;
+        }
+      rxi_history_save (line, "intensities.history");
+      free (line);
+    }
+
+  return RXI_OK;
+}
+
+RXI_STAT
+rxi_dialog_best_fit (struct rxi_input_data *inp_data,
+                     struct rxi_db_molecule_info **info,
+                     struct rxi_db_molecule_enlev **enlev,
+                     struct rxi_db_molecule_radtr **radtr)
+{
+  RXI_STAT status = rxi_dialog_input (inp_data);
+  CHECK ((status == RXI_OK) && "Dialogue error");
+
+  remove_spaces (inp_data->name_list[0]);
+  strcpy (inp_data->name, inp_data->name_list[0]);
+  status = rxi_db_molecule_info_malloc (info);
+  CHECK ((status == RXI_OK) && "Info memory allocation error");
+  if (status != RXI_OK)
+      goto error;
+
+  status = rxi_db_read_molecule_info (inp_data->name, *info);
+  CHECK ((status == RXI_OK) && "Info file error");
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_info_free (*info);
+      goto error;
+    }
+
+  status = rxi_db_molecule_enlev_malloc (enlev, (*info)->numof_enlev);
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_info_free (*info);
+      goto error;
+    }
+
+  status = rxi_db_read_molecule_enlev (inp_data->name, *enlev);
+  CHECK ((status == RXI_OK) && "Database read energy levels error");
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_info_free (*info);
+      rxi_db_molecule_enlev_free (*enlev);
+      goto error;
+    }
+
+  DEBUG ("Molecule enlev parameters were read");
+
+  status = rxi_db_molecule_radtr_malloc (radtr, info[0]->numof_radtr);
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_info_free (*info);
+      rxi_db_molecule_enlev_free (*enlev);
+      goto error;
+    }
+  status = rxi_db_read_molecule_radtr (inp_data->name, *radtr);
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_info_free (*info);
+      rxi_db_molecule_enlev_free (*enlev);
+      rxi_db_molecule_radtr_free (*radtr);
+      goto error;
+    }
+
+  printf ("  ## Enter line intensities, sigma and fwhm\n");
+
+  status = get_line_intensities (*radtr, inp_data->sfreq, inp_data->efreq,
+                                  info[0]->numof_radtr);
+  CHECK ((status == RXI_OK) && "cannot enter intensities");
+  if (status != RXI_OK)
+    {
+      rxi_db_molecule_info_free (*info);
+      rxi_db_molecule_enlev_free (*enlev);
+      rxi_db_molecule_radtr_free (*radtr);
+      goto error;
+    }
+
+  return status;
+
+  error:
+    return status;
 }

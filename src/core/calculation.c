@@ -25,8 +25,6 @@ set_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
       const unsigned int u = data->up[i] - 1;
       const unsigned int l = data->low[i] - 1;
 
-      DEBUG ("%d -> %d", u, l);
-
       double coef = RXI_FK
                     * (gsl_vector_get (data->term, u)
                       - gsl_vector_get (data->term, l))
@@ -34,30 +32,36 @@ set_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
 
       if (coef >= 160)
         coef = 0;
-      else 
+      else
         coef = 1 / (exp (coef) - 1);
 
-      const double uu = gsl_matrix_get (data->rates, u, u)
+      const double uu = gsl_matrix_get (data->rates_archive, u, u)
                         + gsl_matrix_get (data->einst, u, l) * (1 + coef);
 
-      const double ll = gsl_matrix_get (data->rates, l, l)
+      const double ll = gsl_matrix_get (data->rates_archive, l, l)
                         + gsl_matrix_get (data->einst, u, l)
                           * gsl_vector_get (data->weight, u) * coef
                           / gsl_vector_get (data->weight, l);
 
-      const double ul = gsl_matrix_get (data->rates, u, l)
+      const double ul = gsl_matrix_get (data->rates_archive, u, l)
                         - gsl_matrix_get (data->einst, u, l)
                           * gsl_vector_get (data->weight, u) * coef
                           / gsl_vector_get (data->weight, l);
 
-      const double lu = gsl_matrix_get (data->rates, l, u)
+      const double lu = gsl_matrix_get (data->rates_archive, l, u)
                         - gsl_matrix_get (data->einst, u, l) * (1 + coef);
 
       gsl_matrix_set (data->rates, u, u, uu);
       gsl_matrix_set (data->rates, l, l, ll);
       gsl_matrix_set (data->rates, u, l, ul);
       gsl_matrix_set (data->rates, l, u, lu);
+
     }
+  gsl_vector_set_zero (data->pop);
+  gsl_matrix_set_zero (data->tau);
+  gsl_matrix_set_zero (data->excit_temp);
+  gsl_matrix_set_zero (data->antenna_temp);
+  gsl_matrix_set_zero (data->radiation_temp);
 }
 
 static int
@@ -89,18 +93,18 @@ refresh_starting_conditions (struct rxi_calc_data *data, const int n_radtr)
           / //---------------------------------------------
                (2 * RXI_HP * RXI_SOL * gsl_pow_3 (energy));
 
-      /*DEBUG ("%d %d: coef = %.3e | beta %.3e", u, l, coef, beta);*/
+      // DEBUG ("%d %d: coef = %.3e | beta %.3e", u, l, coef, beta);
 
       const double uu = gsl_matrix_get (data->rates, u, u)
                         + gsl_matrix_get (data->einst, u, l) * (beta + coef);
 
       const double ll = gsl_matrix_get (data->rates, l, l)
-                        + gsl_matrix_get (data->einst, u, l) 
+                        + gsl_matrix_get (data->einst, u, l)
                           * gsl_vector_get (data->weight, u)
                           / gsl_vector_get (data->weight, l) * coef;
 
       const double ul = gsl_matrix_get (data->rates, u, l)
-                        - gsl_matrix_get (data->einst, u, l) 
+                        - gsl_matrix_get (data->einst, u, l)
                           * gsl_vector_get (data->weight, u)
                           / gsl_vector_get (data->weight, l) * coef;
 
@@ -215,7 +219,6 @@ static double
 interpolate_cp_rate (const double kin_temp, const double *temps,
                      const double *rates, const size_t n_temps)
 {
-  DEBUG ("Calculating cp rate for given temperature");
   double lcoef = 0;
   double ucoef = 0;
   double ltemp = 0;
@@ -262,13 +265,12 @@ interpolate_cp_rate (const double kin_temp, const double *temps,
 static double*
 get_matrix_row (const gsl_matrix *matrix, const size_t n_row)
 {
-  DEBUG ("Get matrix row %zu with size %zu", n_row, matrix->size2);
   double *row = malloc (matrix->size2 * sizeof (*row));
   for (size_t i = 0; i < matrix->size2; ++i)
     {
       row[i] = gsl_matrix_get (matrix, n_row, i);
     }
-  
+
   return row;
 }
 
@@ -276,11 +278,19 @@ RXI_STAT
 rxi_calc_data_fill (const struct rxi_input_data *inp_data,
                     const struct rxi_db_molecule_info *mol_info,
                     const struct rxi_db_molecule_enlev *mol_enlev,
-                    const struct rxi_db_molecule_radtr *mol_radtr, 
+                    const struct rxi_db_molecule_radtr *mol_radtr,
                     struct rxi_db_molecule_coll_part **mol_cp,
                     struct rxi_calc_data *calc_data)
 {
   DEBUG ("Setting terms and molecular weights");
+
+  gsl_vector_set_zero (calc_data->term);
+  gsl_vector_set_zero (calc_data->weight);
+  gsl_matrix_set_zero (calc_data->einst);
+  gsl_matrix_set_zero (calc_data->freq);
+  gsl_matrix_set_zero (calc_data->coll_rates);
+  gsl_vector_set_zero (calc_data->tot_rates);
+  gsl_matrix_set_zero (calc_data->bgfield);
 
   for (int i = 0; i < mol_info->numof_enlev; ++i)
     {
@@ -362,6 +372,8 @@ rxi_calc_data_fill (const struct rxi_input_data *inp_data,
       gsl_vector_free (conv);
     }
 
+  gsl_matrix_memcpy (calc_data->rates_archive, calc_data->rates);
+
   return RXI_OK;
 }
 
@@ -373,9 +385,11 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
   int thick_lines = 1;
   double stop_condition = 0;
   gsl_vector *prev_pop = gsl_vector_calloc (n_enlev);
-  do 
+  do
     {
-      if (iter != 0)
+      if (iter == 0)
+        set_starting_conditions(data, n_radtr);
+      else
         thick_lines = refresh_starting_conditions (data, n_radtr);
 
       stop_condition = 0;
@@ -433,7 +447,7 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
 
           const double new_excit_temp_i = RXI_FK
               * (gsl_vector_get (data->term, u)
-                 - gsl_vector_get (data->term, l)) 
+                 - gsl_vector_get (data->term, l))
               / log (gsl_vector_get (data->pop, l)
                      * gsl_vector_get (data->weight, u)
                      / gsl_vector_get (data->pop, u)
@@ -446,7 +460,7 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
             }
           else
             {
-              gsl_matrix_set (data->excit_temp, u, l, 
+              gsl_matrix_set (data->excit_temp, u, l,
                   0.5 * (new_excit_temp_i
                     + gsl_matrix_get(data->excit_temp, u, l)));
             }
@@ -454,20 +468,19 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
               data->input.line_width,
               gsl_vector_get (data->term, u) - gsl_vector_get (data->term, l),
               gsl_matrix_get (data->einst, u, l),
-              gsl_vector_get(data->weight, u), gsl_vector_get (data->weight, l),
-              gsl_vector_get(data->pop, u), gsl_vector_get (data->pop, l));
+              gsl_vector_get (data->weight, u), gsl_vector_get (data->weight, l),
+              gsl_vector_get (data->pop, u), gsl_vector_get (data->pop, l));
 
           if (new_tau > 0.01)
             stop_condition += fabs ((gsl_matrix_get (data->excit_temp, u, l)
                                      - new_excit_temp_i) / new_excit_temp_i);
 
           gsl_matrix_set (data->tau, u, l, new_tau);
-          /*DEBUG ("%d -> %d: %.3e", u, l, new_tau);*/
         }
 
       for (int i = 0; i < n_enlev; ++i)
         {
-          const double new_pop_i = 
+          const double new_pop_i =
                       0.3 * gsl_vector_get (data->pop, i) +
                       0.7 * gsl_vector_get (prev_pop, i);
           gsl_vector_set (data->pop, i, new_pop_i);
@@ -479,7 +492,7 @@ rxi_calc_find_rates (struct rxi_calc_data *data, const int n_enlev,
       ++iter;
       DEBUG ("%d: Thick lines: %d | Stopping cond: %.3e", iter, thick_lines,
              stop_condition);
-    } while ((thick_lines != 0 && stop_condition / thick_lines >= 1e-6) &&
+    } while ((thick_lines != 0 && stop_condition / thick_lines >= 1e-7) &&
               iter < 300);
 
   gsl_vector_free (prev_pop);
@@ -497,11 +510,11 @@ rxi_calc_results (struct rxi_calc_data *data, size_t numof_radtr)
       const int u = data->up[i] - 1;
       const int l = data->low[i] - 1;
 
-      const double energy = 
+      const double energy =
           gsl_vector_get (data->term, u) - gsl_vector_get (data->term, l);
       const double xt = gsl_pow_3 (energy);
 
-      // Calculate source function 
+      // Calculate source function
       const double hnu =
                                     RXI_FK * energy
                       / //----------------------------------------
@@ -531,7 +544,7 @@ rxi_calc_results (struct rxi_calc_data *data, size_t numof_radtr)
           tback =
                                     RXI_FK * energy
               / // -----------------------------------------------------
-                   log (        2 * RXI_HP * RXI_SOL * xt 
+                   log (        2 * RXI_HP * RXI_SOL * xt
                        / //------------------------------------
                            gsl_matrix_get (data->bgfield, u, l)      + 1);
         }
@@ -567,6 +580,158 @@ rxi_calc_results (struct rxi_calc_data *data, size_t numof_radtr)
   return RXI_OK;
 }
 
+RXI_STAT
+rxi_calc_chi_squared(struct rxi_calc_data *data,
+                     struct rxi_db_molecule_radtr *radtr)
+{
+  double chisq = 0;
+  DEBUG ("Chisq calc");
+  for (size_t i = 0; i < data->numof_radtr; ++i)
+    {
+      if (radtr->freq[i] < data->input.sfreq)
+        continue;
+      else if (radtr->freq[i] > data->input.efreq)
+        break;
+
+      const int u = data->up[i] - 1;
+      const int l = data->low[i] - 1;
+
+      const double rad_temp = gsl_matrix_get (data->antenna_temp, u, l);
+      double user_rad_temp = radtr->intensity[i];
+      double error = radtr->sigma[i];
+
+      chisq += gsl_pow_2 (rad_temp - user_rad_temp) / error;
+
+      DEBUG ("Calculation of chisq: freq %.3f | TR %.3f | TRU %.3f | sigma %.3f",
+             radtr->freq[i], rad_temp, user_rad_temp, error);
+    }
+  data->chisq = chisq;
+
+  return RXI_OK;
+}
+
+float
+rxi_calc_kin_temp_derivative(struct rxi_calc_data *data,
+                             struct rxi_input_data *inp_data,
+                             struct rxi_db_molecule_info *info,
+                             struct rxi_db_molecule_radtr *radtr)
+{
+  double epsilon = 0.01;
+  double start_temp = inp_data->temp_kin;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi1 = data->chisq;
+
+  inp_data->temp_kin = start_temp + epsilon;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi2 = data->chisq;
+
+  inp_data->temp_kin = start_temp;
+
+  return (chi2 - chi1) / epsilon;
+}
+
+float
+rxi_calc_column_density_derivative (struct rxi_calc_data *data,
+                                    struct rxi_input_data *inp_data,
+                                    struct rxi_db_molecule_info *info,
+                                    struct rxi_db_molecule_radtr *radtr)
+{
+  double epsilon = 0.01;
+  double start_coldens = inp_data->col_dens;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi1 = data->chisq;
+
+  inp_data->col_dens = start_coldens + start_coldens * epsilon;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi2 = data->chisq;
+
+  inp_data->col_dens = start_coldens;
+
+  return (chi2 - chi1) / epsilon;
+}
+
+float
+rxi_calc_derivative (struct rxi_calc_data *data,
+                     struct rxi_input_data *inp_data,
+                     struct rxi_db_molecule_info *info,
+                     struct rxi_db_molecule_radtr *radtr)
+{
+  double start_coldens = inp_data->col_dens;
+  double start_temp = inp_data->temp_kin;
+  double epsilon = 0.01;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi1 = data->chisq;
+
+  inp_data->col_dens = start_coldens + start_coldens * epsilon;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi_cd_2 = data->chisq;
+
+  inp_data->col_dens = start_coldens;
+  inp_data->temp_kin = start_temp + epsilon;
+
+  rxi_calc_data_init(data, inp_data, info);
+  rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+  rxi_calc_chi_squared(data, radtr);
+  float chi_t_2 = data->chisq;
+
+  inp_data->temp_kin = start_temp;
+
+  return ((chi_cd_2 - chi1) / epsilon) + ((chi_t_2 - chi1) / epsilon);
+}
+
+RXI_STAT
+rxi_calc_find_good_fit (struct rxi_calc_data *data,
+                        struct rxi_input_data *inp_data,
+                        struct rxi_db_molecule_info *info,
+                        struct rxi_db_molecule_radtr *radtr)
+{
+  RXI_STAT result = RXI_OK;
+  float temp_der = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
+  float cd_der = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
+  float grad = temp_der + cd_der;
+  int i = 0;
+  while (fabs (grad) > 10 && ++i < 1000)
+    {
+      inp_data->temp_kin -= temp_der / 25;
+      inp_data->col_dens -= inp_data->col_dens / cd_der;
+      temp_der = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
+      cd_der = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
+      grad = temp_der + cd_der;
+
+      DEBUG ("%d | full derivative: %f | T: %f | CD: %.3e", i, grad, inp_data->temp_kin, inp_data->col_dens);
+    }
+
+  // while (chisq > 100)
+    // {
+      // result = rxi_calc_find_rates(data, n_enlev, n_radtr);
+      // if (result != RXI_OK)
+        // break;
+//
+      // result = rxi_calc_chi_squared (data, radtr);
+      // if (result != RXI_OK)
+        // break;
+    // }
+  return result;
+}
+
 double
 rxi_calc_crate (const double istat, const double jstat, const double ediff,
                 const double kin_temp, const double crate)
@@ -590,7 +755,7 @@ rxi_calc_escape_prob (const double tau, const GEOMETRY geom)
               pow (tau_rad, 3) / 6 + pow (tau_rad, 4) / 17.5;
       else if (fabs (tau_rad) > 50)
         beta = 0.75 / tau_rad;
-      else 
+      else
         beta = 0.75 / tau_rad * (1 - 1 / (2 * pow (tau_rad, 2)) + \
                (1 / tau_rad + 1 / (2 * pow (tau_rad, 2))) * exp (-2 * tau_rad));
     }
@@ -600,7 +765,7 @@ rxi_calc_escape_prob (const double tau, const GEOMETRY geom)
         beta = 1 - 1.5 * (tau + tau * 2);
       else if (fabs (3 * tau) > 50)
         beta = 1 / (3 * tau);
-      else 
+      else
         beta = (1 - exp (-3 * tau)) / (3 * tau);
     }
   else if (geom == LVG)
@@ -609,7 +774,7 @@ rxi_calc_escape_prob (const double tau, const GEOMETRY geom)
         beta = 1;
       else if (fabs (tau_rad) < 7)
         beta = 2 * (1 - exp (-2.34 * tau_rad)) / (4.68 * tau_rad);
-      else 
+      else
         beta = 2 / (tau_rad * 4 * sqrt (log (tau_rad / sqrt (M_PI))));
     }
 

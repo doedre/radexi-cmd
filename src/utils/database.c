@@ -68,7 +68,7 @@ rxi_save_molecule_info (FILE *molfile,
         {
           if (!fgets (line, RXI_STRING_MAX, molfile))
             goto file_error;
-          
+
           memcpy (molecule_info->name, line, RXI_STRING_MAX);
         }
       else if (!strncmp (line, "!molecularweight", 16)
@@ -175,7 +175,7 @@ rxi_save_molecule_info (FILE *molfile,
           if (molecule_info->numof_coll_temps[n_partner] != i)
             status = RXI_WARN_LAMDA;
         }
-      else 
+      else
         {
           break;
         }
@@ -256,7 +256,7 @@ rxi_add_molecule_info (const char *db_folder, const char *name,
           mol_info->numof_coll_trans[i], info_filename);
       ini_stat += !ini_putl (section_name, "collisional_temperatures",
           mol_info->numof_coll_temps[i], info_filename);
-      
+
       char *temps = malloc (RXI_STRING_MAX * sizeof (*temps));
       if (!temps)
         {
@@ -385,7 +385,7 @@ rxi_add_molecule (const char *name, const char *path)
       if (mkdir (db_folder, 0700) != 0)
         goto file_error;
     }
-  else 
+  else
     {
       DEBUG ("Ask to rewrite this folder");
       printf ("  ## "
@@ -572,7 +572,7 @@ rxi_delete_molecule (const char *name)
       DEBUG ("Folder exists, trying to delete");
       status = rxi_delete_molecule_folder (db_folder, &sb);
     }
-  else 
+  else
     {
       status = RXI_WARN_NOFILE;
     }
@@ -603,7 +603,7 @@ rxi_db_molecule_iter (DIR *dir, char *name)
       if (S_ISDIR (sb.st_mode))
         return -2;
     }
-  else 
+  else
     return 0;
 
   return 1;
@@ -647,15 +647,15 @@ rxi_db_read_molecule_info (const char *name,
 
   mol_info->weight = ini_getf ("Information", "weight", 0., filename);
   DEBUG ("Molecule weight: %f", mol_info->weight);
- 
+
   mol_info->numof_enlev = ini_getl ("Information", "energy_levels", 0,
                                     filename);
   DEBUG ("Number of energy levels: %d", mol_info->numof_enlev);
- 
+
   mol_info->numof_radtr = ini_getl ("Information", "radiative_transitions", 0,
                                     filename);
   DEBUG ("Number of radiative transitions: %d", mol_info->numof_radtr);
- 
+
   mol_info->numof_coll_part = ini_getl ("Information", "collision_partners",
                                         0, filename);
   DEBUG ("Number of collision partners: %d", mol_info->numof_coll_part);
@@ -773,18 +773,14 @@ rxi_db_read_molecule_enlev (const char *name,
     }
 
   int n = 0;
-  RXI_STAT stat;
+  RXI_STAT stat = RXI_OK;
   for (stat = rxi_csv_read_line (enlev_csv, (void**)buff);
-       stat != RXI_FILE_END;
+       stat == RXI_OK;
        stat = rxi_csv_read_line (enlev_csv, (void**)buff))
     {
-      if (stat != RXI_OK)
-        break;
-
       mol_enl->level[n] = strtol (buff[0], NULL, 10);
-      mol_enl->term[n] = strtod(buff[1], NULL);
-      mol_enl->weight[n] = strtod(buff[2], NULL);
-      strncpy (mol_enl->qnum[n], buff[3], RXI_QNUM_MAX);
+      mol_enl->term[n] = strtod (buff[1], NULL);
+      mol_enl->weight[n] = strtod (buff[2], NULL);
       ++n;
     }
 
@@ -792,6 +788,7 @@ rxi_db_read_molecule_enlev (const char *name,
   free (filename);
   free (buff[0]);
 
+  DEBUG ("Will return %d", stat);
   if (stat != RXI_FILE_END)
     return stat;
 
@@ -857,9 +854,9 @@ rxi_db_read_molecule_radtr (const char *name,
 
       mol_radtr->up[n] = strtol (buff[1], NULL, 10);
       mol_radtr->low[n] = strtol (buff[2], NULL, 10);
-      mol_radtr->einst[n] = strtod(buff[3], NULL);
-      mol_radtr->freq[n] = strtod(buff[4], NULL);
-      mol_radtr->up_en[n] = strtod(buff[5], NULL);
+      mol_radtr->einst[n] = strtod (buff[3], NULL);
+      mol_radtr->freq[n] = strtod (buff[4], NULL);
+      mol_radtr->up_en[n] = strtod (buff[5], NULL);
       ++n;
     }
 

@@ -5,26 +5,26 @@
  *
  * ----------------------------------------------------------------------
  *
- * This file is part of the radexi-cmd program - C language implementation of 
- * RADEX software package. It is used to calculate molecular exitation and 
- * radiative transfer in a homogenuous medium. The purpose of this full 
+ * This file is part of the radexi-cmd program - C language implementation of
+ * RADEX software package. It is used to calculate molecular exitation and
+ * radiative transfer in a homogenuous medium. The purpose of this full
  * refactoring is to speed up the process of calculation and implement some new
- * features like databases. It will make the program more stable and usable, 
+ * features like databases. It will make the program more stable and usable,
  * which is crucial for newcomers.
  *
- * Documentation for radexi-cmd program is posted at 
+ * Documentation for radexi-cmd program is posted at
  * https://github.com/doedre/radexi-cmd
  *
  * ----------------------------------------------------------------------
  *
  * From the RADEX software package:
  *    Documentation for the RADEX program is posted at
- *	  https://personal.sron.nl/~vdtak/radex/index.shtml 
+ *	  https://personal.sron.nl/~vdtak/radex/index.shtml
  *
- *	  Although this program has been thoroughly tested, the authors do not 
- *	  claim that it is free of errors and gives correct results in all 
+ *	  Although this program has been thoroughly tested, the authors do not
+ *	  claim that it is free of errors and gives correct results in all
  *	  situations.
- *	
+ *
  *	  Publications using this program should make a reference to the paper:
  *	  A&A 468, 627 (2007).
  *
@@ -43,6 +43,7 @@
 #include "utils/debug.h"
 
 RXI_STAT usage_dialogue (const struct rxi_options *opts);
+RXI_STAT usage_find_good_fit (const struct rxi_options *opts);
 
 RXI_STAT usage_print_version ();
 RXI_STAT usage_print_help ();
@@ -53,6 +54,10 @@ main (int argc, char **argv)
   RXI_STAT return_value = RXI_OK;
   struct rxi_options opts;
   int index = rxi_set_options (&opts, argc, argv);
+  if (!opts.quite_start)
+    {
+      printf ("STARTING INFO\n");
+    }
 
   switch (opts.usage_mode)
     {
@@ -62,6 +67,10 @@ main (int argc, char **argv)
 
     case UM_MOLECULAR_FILE_ADD:
       return_value = rxi_add_molecule (opts.molecule_name, argv[index]);
+      break;
+
+    case UM_FIND_GOOD_FIT:
+      return_value = usage_find_good_fit (&opts);
       break;
 
     case UM_MOLECULAR_FILE_DELETE:
@@ -92,7 +101,7 @@ RXI_STAT
 usage_dialogue (const struct rxi_options *opts)
 {
   struct rxi_input_data *inp_data = malloc (sizeof (*inp_data));
-  RXI_STAT stat = rxi_dialog_input (inp_data, opts);
+  RXI_STAT stat = rxi_dialog_input (inp_data);
   CHECK ((stat == RXI_OK) && "Dialog errors");
   if (stat != RXI_OK)
     {
@@ -165,6 +174,48 @@ usage_dialogue (const struct rxi_options *opts)
   free (inp_data);
   /*rxi_db_molecule_info_free (info);*/
   /*rxi_calc_data_free (calc_data);*/
+  return stat;
+}
+
+RXI_STAT
+usage_find_good_fit (const struct rxi_options *opts)
+{
+  DEBUG ("Find good fit mode");
+
+  struct rxi_input_data *inp_data = malloc (sizeof (*inp_data));
+  struct rxi_db_molecule_info *info;
+  struct rxi_db_molecule_enlev *mol_enlev;
+  struct rxi_db_molecule_radtr *mol_radtr;
+  struct rxi_calc_data *calc_data;
+
+  RXI_STAT stat = rxi_dialog_best_fit (inp_data, &info, &mol_enlev, &mol_radtr);
+  CHECK ((stat == RXI_OK) && "Dialog errors");
+  if (stat != RXI_OK)
+    {
+      free (inp_data);
+      return stat;
+    }
+
+  stat = rxi_calc_data_malloc (&calc_data, info->numof_enlev, info->numof_radtr);
+  CHECK ((stat == RXI_OK) && "Calculation data memory allocation error");
+  if (stat != RXI_OK)
+    {
+      free (inp_data);
+      rxi_db_molecule_info_free (info);
+      return stat;
+    }
+
+  stat = rxi_calc_find_good_fit (calc_data, inp_data, info, mol_radtr);
+  CHECK ((stat == RXI_OK) && "Error in rates calculation");
+  if (stat != RXI_OK)
+    {
+      free (inp_data);
+      rxi_db_molecule_info_free (info);
+      rxi_calc_data_free (calc_data);
+      return stat;
+    }
+  DEBUG ("Result %f", calc_data->chisq);
+
   return stat;
 }
 
