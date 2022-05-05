@@ -138,7 +138,7 @@ get_frequencies (float *sfreq, float *efreq)
 }
 
 static RXI_STAT
-get_kin_temp (double *kin_temp)
+get_kin_temp (double *kin_temp, double *kin_temp_fin, int *numof_dots)
 {
   DEBUG ("Get kinetic temperature");
 
@@ -154,8 +154,10 @@ get_kin_temp (double *kin_temp)
   bool is_written = false;
   while (!is_written && ((line = rxi_readline ("  >> ")) != NULL))
     {
-      *kin_temp = strtod (line, NULL);
-      if ((*kin_temp > 0) && (*kin_temp < 10000))
+      int n = sscanf (line, "%lf %lf %d", kin_temp, kin_temp_fin, numof_dots);
+      if (((n < 2) && (*kin_temp > 0) && (*kin_temp < 10000))
+          || ((n >= 2) && (*kin_temp > 0) && (*kin_temp < 10000)
+              && (*kin_temp_fin > 0) && (*kin_temp_fin < 10000)))
         {
           is_written = true;
           rxi_history_save (line, "kin_temp.history");
@@ -204,7 +206,7 @@ get_bg_temp (double *bg_temp)
 }
 
 static RXI_STAT
-get_coldens (double *coldens)
+get_coldens (double *coldens, double *coldens_fin, int *numof_dots)
 {
   DEBUG ("Get collision densities");
 
@@ -220,8 +222,10 @@ get_coldens (double *coldens)
   bool is_written = false;
   while (!is_written && ((line = rxi_readline ("  >> ")) != NULL))
     {
-      *coldens = strtod (line, NULL);
-      if ((*coldens > 0) && (*coldens < 1e25))
+      int n = sscanf (line, "%lf %lf %d", coldens, coldens_fin, numof_dots);
+      if (((n < 2) && (*coldens > 0) && (*coldens < 1e25))
+          || ((n >= 2) && (*coldens > 0) && (*coldens < 1e25)
+              && (*coldens_fin > 0) && (*coldens_fin < 1e25)))
         {
           is_written = true;
           rxi_history_save (line, "coldens.history");
@@ -439,7 +443,8 @@ rxi_dialog_input (struct rxi_input_data *inp_data)
 
   printf ("  ## Enter kinetic temperature\n");
 
-  status = get_kin_temp (&inp_data->temp_kin);
+  status = get_kin_temp (&inp_data->temp_kin, &inp_data->temp_kin_final,
+                         &inp_data->temp_kin_dots);
   CHECK ((status == RXI_OK) && "Error getting kinetic temperature");
 
   printf ("  ## Enter background temperature\n");
@@ -449,7 +454,8 @@ rxi_dialog_input (struct rxi_input_data *inp_data)
 
   printf ("  ## Enter column density\n");
 
-  status = get_coldens (&inp_data->col_dens);
+  status = get_coldens (&inp_data->col_dens, &inp_data->col_dens_final,
+                        &inp_data->col_dens_dots);
   CHECK ((status == RXI_OK) && "Error getting column density");
 
   printf ("  ## Enter line width\n");

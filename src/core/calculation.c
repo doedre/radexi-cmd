@@ -697,6 +697,13 @@ rxi_calc_derivative (struct rxi_calc_data *data,
   return ((chi_cd_2 - chi1) / epsilon) + ((chi_t_2 - chi1) / epsilon);
 }
 
+void
+store_result (FILE *file, const double chisq, const double tkin,
+              const double coldens)
+{
+  fprintf (file, "%f %f %.3e\n", chisq, tkin, coldens);
+}
+
 RXI_STAT
 rxi_calc_find_good_fit (struct rxi_calc_data *data,
                         struct rxi_input_data *inp_data,
@@ -704,31 +711,93 @@ rxi_calc_find_good_fit (struct rxi_calc_data *data,
                         struct rxi_db_molecule_radtr *radtr)
 {
   RXI_STAT result = RXI_OK;
-  float temp_der = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
-  float cd_der = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
-  float grad = temp_der + cd_der;
-  int i = 0;
-  while (fabs (grad) > 10 && ++i < 1000)
-    {
-      inp_data->temp_kin -= temp_der / 25;
-      inp_data->col_dens -= inp_data->col_dens / cd_der;
-      temp_der = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
-      cd_der = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
-      grad = temp_der + cd_der;
+  FILE *file;
+  file = fopen ("fgf.txt", "w");
+  if (!file)
+    return RXI_ERR_FILE;
 
-      DEBUG ("%d | full derivative: %f | T: %f | CD: %.3e", i, grad, inp_data->temp_kin, inp_data->col_dens);
+  if ((inp_data->temp_kin_dots == 0) && (inp_data->col_dens_dots == 0))
+    {
+      DEBUG ("Find good fit by two parameters");
+      float temp_der = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
+      float cd_der = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
+      float grad = temp_der + cd_der;
+      int i = 0;
+      while (fabs (grad) > 10 && ++i < 1000)
+        {
+          inp_data->temp_kin -= temp_der / 25;
+          inp_data->col_dens -= inp_data->col_dens / cd_der;
+          temp_der = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
+          cd_der = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
+          grad = temp_der + cd_der;
+
+          store_result (file, data->chisq, inp_data->temp_kin, inp_data->col_dens);
+          DEBUG ("%d | full derivative: %f | T: %f | CD: %.3e", i, grad, inp_data->temp_kin, inp_data->col_dens);
+        }
+    }
+  else if ((inp_data->temp_kin_dots == 0) && (inp_data->col_dens_dots != 0))
+    {
+      DEBUG ("Find good fit by kinetic temperature");
+      double coldens_step = fabs ((inp_data->col_dens - inp_data->col_dens_final) / inp_data->col_dens_dots);
+      for (double cd = inp_data->col_dens; cd <= inp_data->col_dens_final; cd += coldens_step)
+        {
+          inp_data->col_dens = cd;
+          float grad = 100;
+          int i = 0;
+          while (fabs (grad) > 3 && ++i < 1000)
+            {
+              inp_data->temp_kin -= grad / 25;
+              grad = rxi_calc_kin_temp_derivative (data, inp_data, info, radtr);
+              store_result (file, data->chisq, inp_data->temp_kin, inp_data->col_dens);
+              DEBUG ("%d | tkin derivative: %f | T: %f | CD: %.3e", i, grad, inp_data->temp_kin, inp_data->col_dens);
+            }
+        }
+    }
+  else if ((inp_data->temp_kin_dots != 0) && (inp_data->col_dens_dots == 0))
+    {
+      DEBUG ("Find good fit by column density");
+      double tkin_step = fabs ((inp_data->temp_kin - inp_data->temp_kin_final) / inp_data->temp_kin_dots);
+      for (double tkin = inp_data->temp_kin; tkin <= inp_data->temp_kin_final; tkin += tkin_step)
+        {
+          inp_data->temp_kin = tkin;
+          float grad = 100;
+          int i = 0;
+          while (fabs (grad) > 1 && ++i < 1000)
+            {
+              inp_data->col_dens -= inp_data->col_dens / grad;
+              grad = rxi_calc_column_density_derivative (data, inp_data, info, radtr);
+
+              store_result (file, data->chisq, inp_data->temp_kin, inp_data->col_dens);
+              DEBUG ("%d | coldens derivative: %f | T: %f | CD: %.3e", i, grad, inp_data->temp_kin, inp_data->col_dens);
+            }
+        }
+    }
+  else if ((inp_data->temp_kin_dots != 0) && (inp_data->col_dens_dots != 0))
+    {
+      DEBUG ("Build a net of parameters");
+      double tkin_step = fabs ((inp_data->temp_kin - inp_data->temp_kin_final) / inp_data->temp_kin_dots);
+      double coldens_step = fabs ((inp_data->col_dens - inp_data->col_dens_final) / inp_data->col_dens_dots);
+      double coldens_start = inp_data->col_dens;
+      for (double tkin = inp_data->temp_kin; tkin <= inp_data->temp_kin_final; tkin += tkin_step)
+        {
+          inp_data->temp_kin = tkin;
+          for (double cd = coldens_start; cd <= inp_data->col_dens_final; cd += coldens_step)
+            {
+              inp_data->col_dens = cd;
+              rxi_calc_data_init(data, inp_data, info);
+              rxi_calc_find_rates(data, info->numof_enlev, info->numof_radtr);
+              rxi_calc_chi_squared(data, radtr);
+              store_result (file, data->chisq, inp_data->temp_kin, inp_data->col_dens);
+              DEBUG ("chisq: %f | T: %f | CD: %.3e", data->chisq, inp_data->temp_kin, inp_data->col_dens);
+            }
+        }
+    }
+  else
+    {
+      DEBUG ("No option to calculate");
     }
 
-  // while (chisq > 100)
-    // {
-      // result = rxi_calc_find_rates(data, n_enlev, n_radtr);
-      // if (result != RXI_OK)
-        // break;
-//
-      // result = rxi_calc_chi_squared (data, radtr);
-      // if (result != RXI_OK)
-        // break;
-    // }
+  fclose (file);
   return result;
 }
 

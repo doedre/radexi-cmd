@@ -178,8 +178,12 @@ struct rxi_input_data
   float   sfreq;                  //!< Starting frequency for output [GHz].
   float   efreq;                  //!< Ending frequency for output [GHz].
   double  temp_kin;               //!< Kinetic temperature [K].
+  double  temp_kin_final;         //!< Final kinetic temperature for net [K].
+  int     temp_kin_dots;          //!< Number of dots for kinetic temperature.
   double  temp_bg;                //!< Background temperature [K].
   double  col_dens;               //!< Column density [cm-2].
+  double  col_dens_final;         //!< Final column density for net [cm-2].
+  int     col_dens_dots;          //!< Number of dots for column density.
   double  line_width;             //!< FWHM width for all lines [km s-1].
   GEOMETRY geom;                  //!< Radiation field geometry.
   int8_t  n_coll_partners;        //!< Number of specified collision partners.
