@@ -49,11 +49,21 @@ ${BUILD_DIR}:
 radexi: ${BUILD_DIR} ${OBJ_DIR} ${OBJ}
 	@echo [LD] ${BUILD_DIR}/$@
 	@${CC} ${CFLAGS} ${LDFLAGS} ${addprefix ${OBJ_DIR}/,${notdir ${OBJ}}} -o ${BUILD_DIR}/$@
+	mkdir -p ${HOME}/.local/share/radexi
+	mkdir -p ${HOME}/.config/radexi
+	touch ${HOME}/.config/radexi/mname.history
+	touch ${HOME}/.config/radexi/freq.history
+	touch ${HOME}/.config/radexi/kin_temp.history
+	touch ${HOME}/.config/radexi/bg_temp.history
+	touch ${HOME}/.config/radexi/coldens.history
+	touch ${HOME}/.config/radexi/line_width.history
+	touch ${HOME}/.config/radexi/geometry.history
+	touch ${HOME}/.config/radexi/coll_part.history
 
 debug: CFLAGS := $(filter-out -DNDEBUG,$(CFLAGS))
 debug: radexi
 
-install: all
+install:
 	cp -f bin/radexi /usr/local/bin/
 	chmod 755 /usr/local/bin/radexi
 
