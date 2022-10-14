@@ -1,0 +1,9 @@
+#pragma once
+
+#define RXI_STRING_LEN (32)
+#define RXI_PATH_LEN (128)
+
+#define RXI_MAX_COLLISION_PARTNERS (7)
+
+#define RXI_LAMDA_LINE_LEN (512)
+#define RXI_LAMDA_MAX_LINES_IN_NODE (65536)

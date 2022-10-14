@@ -6,3 +6,5 @@ bin
 .cache
 Radex
 .obj
+3rdparty
+build
