@@ -1,6 +1,5 @@
 #pragma once
 
-#include "radexi/lamda/node.h"
 #include <setjmp.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -148,7 +147,8 @@ parse_test(void** status)
 	stat = rxi_lamda_doc_init(&doc);
 	assert_int_equal(stat, RXI_OK);
 	stat = rxi_lamda_parse("../../data/hco+.dat", &doc);
-	assert_int_equal(stat, RXI_OK);
+	if (stat != RXI_OK)
+		fail_msg("%s", rxi_lamda_parse_error());
 
 //	rxi_lamda_doc_print(&doc);
 

@@ -8,13 +8,13 @@
 RXI_STAT
 rxi_lamda_node_init(rxi_lamda_node_t* node, const size_t size)
 {
-	if ((size + 1) > RXI_LAMDA_MAX_LINES_IN_NODE) {
+	if (size > RXI_LAMDA_MAX_LINES_IN_NODE) {
 		return RXI_ERR_WRONG_ARGUMENT;
 	}
 
 	errno = 0;
 	node->capacity = size;
-	node->lines = calloc(size + 1, sizeof(*node->lines));
+	node->lines = calloc(size, sizeof(*node->lines));
 	if (errno) {
 		perror("Cannot allocate memory for LAMDA parser node");
 		return RXI_ERR_MALLOC;

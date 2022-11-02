@@ -8,7 +8,7 @@
 
 #include <cmocka.h>
 
-#include "radexi/input/range.h"
+#include <radexi/input/range.h>
 
 void
 valid_range_test(void** state)

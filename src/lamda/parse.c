@@ -122,20 +122,24 @@ rxi_lamda_parse(const char* path, rxi_lamda_doc_t* doc)
 			if (nt == RXI_LAMDA_NODE_UNKNOWN) {
 				snprintf(rxi_lamda_parse_error_str,
 						RXI_LAMDA_LINE_LEN,
-						"In file %s, line %d: unknown node type %s",
+						"In file %s, line %d: unknown node type `%s`",
 						path, nline, orig_line);
 				status = RXI_LAMDA_BAD_NODE;
 				goto ANY_ERROR;
 			}
-			rxi_lamda_node_t* new_node = calloc(1, sizeof(*new_node));
-			if (!new_node)
-				goto MALLOC_ERROR;
+			rxi_lamda_node_t new_node;
+			new_node.type = nt;
+			new_node.capacity = 0;
+			new_node.lines = NULL;
 
-			new_node->type = nt;
-
-			status = rxi_lamda_doc_append(doc, new_node);
-			if (status == RXI_ERR_MALLOC)
-				goto MALLOC_ERROR;
+			status = rxi_lamda_doc_append(doc, &new_node);
+			if (status == RXI_ERR_MALLOC) {
+				snprintf(rxi_lamda_parse_error_str,
+						RXI_LAMDA_LINE_LEN,
+						"In file %s, line %d: Failed to allocate memory to insert new node `%s` in LAMDA document",
+						path, nline, orig_line);
+				goto ANY_ERROR;
+			}
 
 			continue;
 		}
@@ -155,8 +159,13 @@ rxi_lamda_parse(const char* path, rxi_lamda_doc_t* doc)
 		if (is_one_line_node(node->type)) {
 			if (!rxi_lamda_node_inited(node)) {
 				status = rxi_lamda_node_init(node, 1);
-				if (status != RXI_OK)
-					goto MALLOC_ERROR;
+				if (status != RXI_OK) {
+					snprintf(rxi_lamda_parse_error_str,
+							RXI_LAMDA_LINE_LEN,
+							"In file %s, line %d: Failed to allocate memory for one line node `%s`",
+							path, nline, orig_line);
+					goto ANY_ERROR;
+				}
 			}
 
 			rxi_lamda_node_append(node, line);
@@ -166,11 +175,20 @@ rxi_lamda_parse(const char* path, rxi_lamda_doc_t* doc)
 		if (!rxi_lamda_node_inited(node)) {
 			status = rxi_lamda_node_init(node, node_sizes);
 			if (status == RXI_ERR_MALLOC) {
-				goto MALLOC_ERROR;
+				snprintf(rxi_lamda_parse_error_str,
+						RXI_LAMDA_LINE_LEN,
+						"In file %s, line %d: Failed to allocate memory for multiline node of size %lu",
+						path, nline, node_sizes);
+				goto ANY_ERROR;
 			} else if (status == RXI_ERR_WRONG_ARGUMENT) {
-				status = rxi_lamda_node_init(node, 1);
-				if (status != RXI_OK)
-					goto MALLOC_ERROR;
+				status = rxi_lamda_node_init(node, RXI_LAMDA_MAX_LINES_IN_NODE - 1);
+				if (status != RXI_OK) {
+					snprintf(rxi_lamda_parse_error_str,
+							RXI_LAMDA_LINE_LEN,
+							"In file %s, line %d: Failed to allocate memory for multiline node of size %d",
+							path, nline, RXI_LAMDA_MAX_LINES_IN_NODE - 1);
+					goto ANY_ERROR;
+				}
 			}
 		}
 
@@ -179,11 +197,10 @@ rxi_lamda_parse(const char* path, rxi_lamda_doc_t* doc)
 			status = rxi_lamda_node_change_capacity(node,
 					++node_sizes);
 			if (status == RXI_ERR_MALLOC) {
-				goto MALLOC_ERROR;
-			} else {
 				snprintf(rxi_lamda_parse_error_str,
 						RXI_LAMDA_LINE_LEN,
-						"Cannot change node capacity");
+						"In file %s, line %d: Failed to allocate memory when increasing capacity of document's node to %lu",
+						path, nline, node_sizes);
 				goto ANY_ERROR;
 			}
 		}
@@ -195,18 +212,9 @@ rxi_lamda_parse(const char* path, rxi_lamda_doc_t* doc)
 		return RXI_ERR_FILE;
 	}
 
+	fclose(file);
+
 	return RXI_OK;
-
-MALLOC_ERROR:
-	if (file)
-		fclose(file);
-
-	if (doc->size != 0)
-		rxi_lamda_doc_free(doc);
-
-	snprintf(rxi_lamda_parse_error_str, RXI_LAMDA_LINE_LEN,
-			"Memory allocation error");
-	return RXI_ERR_MALLOC;
 
 ANY_ERROR:
 	if (file)
@@ -223,3 +231,4 @@ rxi_lamda_parse_error()
 {
 	return rxi_lamda_parse_error_str;
 }
+
